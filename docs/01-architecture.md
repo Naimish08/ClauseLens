@@ -51,7 +51,10 @@ The single source of truth for scoring: character precision/recall in `paper` an
 grouping, abstention summaries, and paired bootstrap. Nothing else computes a
 score.
 
-### 2. Chunking — `src/chunking/` 📋
+### 2. Chunking — `src/chunking/` 🚧
+
+`fixed` is implemented and span-validated; `recursive`, `sentence` and `clause`
+are pending (`docs/04-chunking.md`).
 
 Input: one `Document`. Output: `list[Chunk]`, each with an **exact character
 span** into that document's text. A chunk is invalid if
@@ -65,7 +68,10 @@ class Chunker(Protocol):
     def chunk(self, document: Document) -> list[Chunk]: ...
 ```
 
-### 3. Retrieval — `src/retrieval/` 📋
+### 3. Retrieval — `src/retrieval/` 🚧
+
+`bm25` is implemented; dense, hybrid and rerank are pending
+(`docs/05-retrieval.md`).
 
 ```python
 class Retriever(Protocol):
@@ -89,7 +95,10 @@ class Reranker(Protocol):
 Rerankers consume top-`N` candidates (20–50) and return top-`k`. They never see
 ground truth.
 
-### 5. Abstention — `src/abstain.py` 📋
+### 5. Abstention — `src/abstain.py` 🚧
+
+`none` and `threshold` are implemented; margin, per-type and classifier are
+pending (`docs/06-abstention.md`).
 
 ```python
 class Abstainer(Protocol):
@@ -102,13 +111,16 @@ between rank 1 and 2, document-match confidence (if a router ran), BM25/dense
 agreement, number of results above a low floor. A policy returns `abstain: bool`
 plus a human-readable reason, which the app and CLI display.
 
-### 6. Pipeline — `src/pipeline.py` 📋
+### 6. Pipeline — `src/pipeline.py` ✅
 
 The only component that knows about all stages. Builds stages from a config,
 indexes once, exposes `search(query) -> PipelineResult`. No branching on
 "which chunker is this" — stages are polymorphic.
 
-### 7. Evaluation — `eval/` 📋
+### 7. Evaluation — `eval/` 🚧
+
+Single-config evaluation with run artefacts and the test-run guard is implemented;
+the comparison grids are pending (`docs/08-evaluation-protocol.md`).
 
 Calls `pipeline.search()` for every query in a split, scores with `src/metrics.py`,
 aggregates, and writes a results table (CSV + markdown) and a JSON detail file

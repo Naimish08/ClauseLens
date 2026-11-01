@@ -267,6 +267,7 @@ of silent.
 still copyrighted material with licence ambiguity); an HF dataset mirror
 (none official exists, and a mirror can disappear).
 
+
 ---
 
 ## ADR-013 — Chunk sizes are specified in characters
@@ -286,3 +287,28 @@ token chunk sizes — stated in the report.
 
 **Alternatives rejected.** Token sizes (not comparable across the three models;
 harder to reason about precision from the metric's own units).
+
+---
+
+## ADR-014 — `search(query, k)`; `top_k` is a serving default, not an evaluation cap
+
+*Status: accepted · 2026-11-01*
+
+**Context.** The first baseline run produced identical metrics at `k=10` and
+`k=16`. Cause: the pipeline truncated results at `retrieval.top_k`, so evaluating
+at a larger `k` silently re-measured the same ten spans.
+
+**Decision.** `Pipeline.search(query, k=None)` returns at most `k` spans, defaulting
+to `config.top_k`. Evaluation passes `max(cutoffs)` and scores prefixes of that one
+ranking.
+
+**Consequences.** Every reported `k` is measured on a real top-`k` list, and each
+query costs one retrieval call instead of one per `k`. Serving still defaults to
+`top_k`, so the app and CLI do not start dumping 16 passages because the report
+measures recall@16.
+
+**Alternatives rejected.** Setting `top_k` to the largest reported `k` (couples
+serving behaviour to reporting choices); a separate evaluation-only search path
+(two rankings, two behaviours to trust).
+
+---

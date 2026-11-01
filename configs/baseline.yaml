@@ -1,0 +1,36 @@
+name: baseline-fixed512-bm25
+seed: 13
+
+data:
+  benchmark: cuad
+  mini_limit: 194
+  read_mode: raw
+  split: train
+
+chunking:
+  name: fixed
+  params:
+    size: 512
+    overlap: 0
+    snap: true
+    snap_tolerance: 80
+
+retrieval:
+  name: bm25
+  params:
+    k1: 1.5
+    b: 0.75
+  top_k: 10
+
+rerank:
+  name: none
+
+abstain:
+  name: none
+
+query:
+  strip_doc_hint: false
+
+metrics:
+  mode: paper
+  ks: [1, 2, 4, 8, 16]

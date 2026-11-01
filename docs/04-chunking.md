@@ -1,6 +1,7 @@
 # 04 — Chunking
 
-Status: 📋 designed, `src/chunking/` pending.
+Status: 🚧 `fixed` implemented and span-validated; `recursive`, `sentence`,
+`clause`, parent–child and contextual enrichment pending.
 
 Chunking is the single biggest lever on **character precision**, because
 precision is `overlap / retrieved_length` and the median ground-truth answer is

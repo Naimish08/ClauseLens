@@ -1,6 +1,6 @@
 # 05 — Retrieval
 
-Status: 📋 designed, `src/retrieval/` pending.
+Status: 🚧 BM25 implemented; dense, hybrid, rerank and router pending.
 
 ## The document-routing lever
 
@@ -33,8 +33,28 @@ for.
 
 Optional second lever, measured as a query-preprocessing ablation: strip the
 `"Consider the ...;"` prefix entirely and retrieve on the clause question alone.
-If that *improves* results, the prefix was adding noise; if it *hurts*, the prefix
-was doing implicit routing. Either outcome is a finding worth reporting.
+
+### Measured baseline observations (train, 2026-11-01)
+
+Fixed-512 chunks, BM25, 140 train queries, 29 documents, 2396 chunks:
+
+| Query text | recall@10 | recall@50 | recall@100 |
+|---|---|---|---|
+| full query (prefix kept) | **0.101** | **0.375** | **0.465** |
+| prefix stripped | 0.083 | 0.192 | 0.259 |
+
+- `doc_hit@1 = 1.000`: the prefix alone identifies the correct document for every
+  query, so document routing is not the bottleneck.
+- Stripping the prefix makes retrieval clearly **worse**, which confirms the
+  prefix is doing routing work rather than adding noise. The clause question on
+  its own is too generic ("What is the expiration date of this contract?") to
+  discriminate.
+- The bottleneck is *within-document ranking*: the first overlapping chunk sits at
+  rank 57–743, because the prefix's party names match the contract's title and
+  header chunks, which then outrank the clause itself.
+
+This is the measured case for the two-stage design: use the prefix (or a semantic
+router) to pick the document, then rank clauses inside it.
 
 ## BM25
 

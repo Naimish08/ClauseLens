@@ -66,7 +66,20 @@ Cache keys hash the *chunk configuration and corpus manifest hash*, so changing 
 chunk size never silently reuses stale vectors. Clearing caches is always safe:
 `make clean` removes `artifacts/`.
 
-## Expected timings (targets, to be replaced with measurements)
+## Measured (2026-11-01, baseline)
+
+Real numbers replace the targets below as stages land. Baseline config
+(`configs/baseline.yaml`, fixed-512, BM25, 140 train queries):
+
+| Step | Measured |
+|---|---|
+| Parse + chunk + validate 29 documents | 2396 chunks from 1,211,773 chars |
+| Index build (chunk + BM25) | included in the run below |
+| Full eval run (chunk + index + 140 queries) | **0.74 s** wall clock |
+| Per-query latency (BM25) | median **3.5 ms**, p95 **4.6 ms** |
+| Test suite | 98 tests, 0.4 s |
+
+## Targets (to be replaced with measurements)
 
 | Step | Corpus size | Expected |
 |---|---|---|

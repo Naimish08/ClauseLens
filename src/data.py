@@ -234,6 +234,25 @@ def by_split(queries: Iterable[Query], split: Split) -> list[Query]:
     return [q for q in queries if q.split == split]
 
 
+def load_benchmark_split(
+    benchmark: str = "cuad",
+    mini_limit: int = MINI_LIMIT,
+    read_mode: ReadMode = "raw",
+    split: str = "train",
+) -> tuple[list[Query], dict[str, Document]]:
+    """Load exactly what an evaluation needs: queries for one split, their documents.
+
+    ``mini_limit=0`` means "no cap" (the full benchmark), which is useful for the
+    integrity check and for sanity runs, not for reporting.
+    """
+    all_queries = load_benchmark(benchmark)
+    queries = select_mini(all_queries, limit=mini_limit) if mini_limit else all_queries
+    if split != "all":
+        queries = by_split(queries, split)  # type: ignore[arg-type]
+    referenced = sorted({fp for query in queries for fp in query.file_paths})
+    return queries, load_corpus(referenced, mode=read_mode)
+
+
 # --------------------------------------------------------------------------- #
 # Cross-validation folds (within train)
 # --------------------------------------------------------------------------- #

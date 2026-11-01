@@ -1,6 +1,7 @@
 # 06 — Abstention
 
-Status: 📋 designed, `src/abstain.py` and `data/unanswerable.jsonl` pending.
+Status: 🚧 `none` and `threshold` policies implemented and evaluated as the
+baseline; margin, per-type and classifier pending, as is `data/unanswerable.jsonl`.
 
 Abstention is treated as its own problem with its own dataset, not as a magic
 score threshold. The comparison is a **trade-off curve**: false abstention on
