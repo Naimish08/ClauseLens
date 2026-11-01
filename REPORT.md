@@ -1,10 +1,7 @@
 # ClauseLens — Report
 
-Status: **final**. Every number is measured and reproducible from a committed
-config; the iteration and comparison tables are generated from logs, not written by
-hand.
-
-Deadline: Monday 2 November 2026, 17:00 IST.
+Every number is measured and reproducible from a committed config; the iteration
+and comparison tables are generated from logs, not written by hand.
 
 ---
 
@@ -33,11 +30,11 @@ recall ceiling), **dense versus lexical retrieval**, then everything else. Docum
 identification was already perfect at baseline (`doc_hit@1 = 1.000`); all the work
 is ranking the right clause inside the right contract.
 
-**Test-run accounting.** Three test evaluations, all after tuning was complete:
-baseline (for the comparison), final before abstention was configured, and final
-with abstention. The first final run was superseded by a functional requirement —
-shipping abstention — not by a result. `logs/test_runs.log` records all three with
-reasons.
+**Test-run accounting.** Four test evaluations, all after tuning was complete:
+baseline (for the comparison), final before abstention was configured, final with
+abstention, and a final abstention-only evaluation covering both directions. The
+first final run was superseded by a functional requirement — shipping abstention —
+not by a result. `logs/test_runs.log` records all four with reasons.
 
 Main limitations: one benchmark of 29 contracts, authored negatives, and a loop that
 is a local search over a hand-written rule table (Sections 9–10).
@@ -57,8 +54,8 @@ Alternatives considered and rejected are recorded as ADRs in
 results most:
 
 - **ADR-005** — the paper's precision/recall definition *sums* per-snippet overlaps
-  while the build plan said *union*; both are implemented, `paper` is the default.
-- **ADR-008** — no LLM components (scope cut to protect the deadline).
+  while an early design note specified *union*; both are implemented, `paper` is the default.
+- **ADR-008** — no LLM components (scope decision).
 - **ADR-010** — the query prefix leaks the document; routing is an ablation, not a
   hidden default.
 
@@ -72,6 +69,8 @@ results most:
 | Queries | 194 (140 train / 54 test), hash-fixed split |
 | Documents | 29 |
 | Ground-truth snippets | 272 |
+| Unanswerable queries | 46 authored (34 train / 12 test) |
+| Test evaluations | 4, all after tuning (`logs/test_runs.log`) |
 | Metric | character precision/recall (paper semantics), doc-hit, span-hit, chunk-hit, MRR |
 | Hardware | RTX 4060 Laptop (8 GB), Python 3.12.15 |
 
@@ -84,14 +83,14 @@ divided by the total characters returned; character recall is the overlap divide
 by the total ground-truth characters. Both are computed per query and
 macro-averaged, so one long answer cannot outvote a short one. The implementation
 follows the reference code exactly (`paper` mode), which sums per-snippet overlaps
-rather than taking their union; the union variant exists because the build plan and
-the paper disagree when retrieved chunks overlap (ADR-005), and every table states
-which was used.
+rather than taking their union; the union variant exists because an early design
+note and the paper disagree when retrieved chunks overlap (ADR-005), and every
+table states which was used.
 
 **Split discipline.** The train/test boundary is a SHA-256 of the query text and is
 never re-derived. All development — chunking, retrieval, abstention, the loop — used
 train only. Test evaluation requires an explicit flag and appends to
-`logs/test_runs.log`; three runs were made in total, all after tuning, and Section 0
+`logs/test_runs.log`; four runs were made in total, all after tuning, and Section 0
 explains each.
 
 **Uncertainty.** Every comparison is paired by query and reported with a 95%
@@ -229,10 +228,28 @@ on four folds, applied to the held-out fifth. Figure:
 6. **Type 3 hard negatives remain the hard case** (0.70 correct); types 1, 2 and 4
    are near-saturated.
 
-⚠️ A first version of the classifier looked near-perfect (false abstention 0.000)
-because `query_len` separated the classes by construction — the authored negatives
-are shorter than benchmark queries. It was learning authorship. The feature was
-removed and a regression test enforces the exclusion.
+**Test-split abstention (final reporting).** This is the dedicated test evaluation
+of abstention in both directions; the threshold is the fixed `0.9018` from
+`configs/final.yaml`, with no selection on test, over the same 21-document test
+index used by the retrieval run (`eval.run_abstention --split test`).
+
+| direction | rate | 95% CI | n |
+|---|---|---|---|
+| false abstention (answerable) | 0.148 | [0.056, 0.241] | 54 |
+| correct abstention (unanswerable) | 0.917 | [0.750, 1.000] | 12 |
+
+The false-abstention rate reproduces the 14.8% (8/54) figure used in Section 5 and
+the test results. Correct abstention is high overall, but the test negatives are
+unevenly distributed (type 1: 1, type 2: 5, type 3: 4, type 4: 2). Per type, types
+1, 2 and 4 are saturated and type 3 is 0.75; the interval on 12 points is wide, so
+this is reported as an estimate, not a precise claim. It is also a different
+composition from the 34 train negatives, which is why the train and test rates are
+not directly comparable.
+
+**Caveat:** A first version of the classifier looked near-perfect (false abstention
+0.000) because `query_len` separated the classes by construction — the authored
+negatives are shorter than benchmark queries. It was learning authorship. The
+feature was removed and a regression test enforces the exclusion.
 
 ---
 
@@ -272,9 +289,9 @@ with `make retrieval-grid`.
 6. **Index cost is real.** BM25 indexes in 0.16 s; gte-base takes 45 s; e5-large
    takes 230 s. Retrieval speed and index speed are different budgets.
 
-⚠️ The hybrid rows report near-zero index time because their embeddings were cache
-hits from the earlier dense runs. That number is a cache measurement, not the cost
-of building the index from scratch.
+**Caveat:** The hybrid rows report near-zero index time because their embeddings
+were cache hits from the earlier dense runs. That number is a cache measurement,
+not the cost of building the index from scratch.
 
 ---
 
@@ -338,7 +355,7 @@ shipped configuration, abstention included.
 | chunk_hit@10 | 0.064 | 0.371 | +0.307 | [+0.229, +0.386] | yes |
 | doc_hit@10 | 1.000 | 0.914 | −0.086 | [−0.136, −0.043] | yes |
 
-**Test** (54 queries, three runs total, details in Section 0):
+**Test** (54 queries, four runs total, details in Section 0):
 
 | metric | baseline | final | delta | 95% CI | significant |
 |---|---|---|---|---|---|
@@ -448,7 +465,7 @@ Twelve concrete failures, three per cause (full report with excerpts in
 
 ---
 
-## 10. Limitations
+## 10. Limitations and next steps
 
 See [`docs/12-risks-and-limitations.md`](docs/12-risks-and-limitations.md) for the
 full list. The ones that most affect how these numbers should be read:
@@ -458,7 +475,7 @@ full list. The ones that most affect how these numbers should be read:
 - The query prefix leaks the document, so prefix routing is not deployable as-is.
 - No LLM components; whether an LLM would beat the best non-LLM pipeline here is
   untested.
-- Small test set (54 answerable, ~13 unanswerable), so intervals are wide.
+- Small test set (54 answerable, 12 unanswerable), so intervals are wide.
 - **Abstention thresholds do not transfer to differently-phrased questions.** The
   shipped threshold is calibrated on benchmark queries, which name the contract;
   a bare clause question scores lower and is wrongly abstained. The demo config
@@ -478,14 +495,42 @@ full list. The ones that most affect how these numbers should be read:
 - Latency is gated by an absolute budget as well as a ratio (ADR-018). The budget
   is a judgement about what feels interactive, not a measurement.
 
+### Next steps
+
+- **Parent–child retrieval.** Retrieve small spans and return the enclosing
+  clause. It directly targets the dominant `extra_context` failure and the
+  `partial_span` boundary cases, and is the most likely single improvement to
+  precision without giving back recall.
+- **Remove the query-prefix dependency.** Evaluate a semantic router or a
+  document-classifier step on naturally phrased questions, then recalibrate
+  abstention for that distribution. The benchmark prefix makes document routing
+  nearly free; a deployed system will not have it.
+- **Cross-reference and definition resolution at indexing time.** Resolve
+  "as defined in Section 4.2" and carry defined terms into the chunk text. This is
+  the part of the messy-contract problem the current chunkers do not address.
+- **Measure an LLM reranker or query rewriter.** It is the main optional component
+  not tested here. Any such experiment needs a cached, offline-reproducible run and
+  a privacy note, because real contracts are confidential.
+- **A larger, naturally phrased negative set.** The authored negatives are 46
+  queries and are shorter than benchmark queries; the threshold and classifier
+  would benefit from a larger set that does not encode authorship.
+- **Token-based chunk sizes.** The current sizes are characters, which makes direct
+  comparison with token-based papers awkward (ADR-013).
+
 ---
 
 ## 11. AI tool usage
 
-AI assistance was used to write code, tests and documentation. No AI component runs
-**inside** the system: there is no LLM in retrieval, reranking, abstention or the
-improvement loop (ADR-008). The loop's proposer is a deterministic rule table, so
-every accepted change is attributable to a named rule and a config diff.
+**LLM use in the system: none.** No LLM is used for query rewriting, retrieval,
+reranking, abstention or proposal in the improvement loop. The loop's proposer is a
+deterministic rule table, so every accepted change is attributable to a named rule
+and a config diff. This was a deliberate scope decision (ADR-008): it keeps the
+pipeline auditable and avoids sending contract text off-machine. The cost is that
+LLM components remain untested (Section 10).
+
+AI coding assistants were used to write code, tests and documentation. No AI
+component runs **inside** the system, and no API key or hosted model is required by
+any evaluated configuration.
 
 **How the output was controlled.**
 
@@ -499,11 +544,12 @@ every accepted change is attributable to a named rule and a config diff.
 4. Design decisions and rejected alternatives are recorded as ADRs
    (`docs/09-decisions.md`), including the ones that changed course.
 
-**Claims that were wrong and were caught.** These are the useful part of the record:
+**Corrections made during development.** These are the places where the first
+answer looked fine and a check disagreed:
 
-- The build plan referred to an upstream `mini()` function that does not exist; the
-  selection is inline logic with unusual reseeding, and a "cleaner" reimplementation
-  would have chosen a different 194 queries.
+- An early design note referred to an upstream `mini()` function that does not
+  exist; the selection is inline logic with unusual reseeding, and a "cleaner"
+  reimplementation would have chosen a different 194 queries.
 - A first abstention classifier appeared near-perfect (false abstention 0.000)
   because `query_len` separated the classes by construction — the authored
   negatives are shorter than benchmark queries. It was learning authorship, not

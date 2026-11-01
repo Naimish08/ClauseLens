@@ -1,7 +1,7 @@
 # 06 — Abstention
 
-Status: 🚧 `none` and `threshold` policies implemented and evaluated as the
-baseline; margin, per-type and classifier pending, as is `data/unanswerable.jsonl`.
+Status: implemented and measured. All four policies and the 46-query frozen
+unanswerable set are in place (`make abstention`).
 
 Abstention is treated as its own problem with its own dataset, not as a magic
 score threshold. The comparison is a **trade-off curve**: false abstention on
@@ -9,8 +9,8 @@ answerable queries against correct abstention on unanswerable ones.
 
 ## The unanswerable set
 
-Target **40–50 queries** (the checklist floor is 30; the design target is 40–50 so
-per-type breakdowns are meaningful). Four deliberately different types:
+The set contains **46 queries**, above the checklist floor of 30 and large enough
+for per-type breakdowns. Four deliberately different types:
 
 | Type | Description | Why it is hard | Example shape |
 |---|---|---|---|
@@ -43,7 +43,7 @@ Verification: every `absent_patterns` regex is checked against the claimed scope
 `make negatives`, and every type-4 entry must prove its near-miss neighbour is
 present. `scripts/mine_negatives.py` produced the candidates.
 
-⚠️ **The check earned its keep.** Three drafted entries were rejected and replaced:
+**The check caught three drafting errors.** Three drafted entries were rejected and replaced:
 
 - "tag-along rights" as a type-1 candidate — the IGENE joint venture has an express
   *Section 12.1 RIGHT OF FIRST REFUSAL; TAG-ALONG RIGHTS*. Replaced with a
@@ -62,16 +62,15 @@ pattern to be precise.
 
 ### Freezing protocol
 
-1. Draft generated with BM25 near-miss mining, then **verified by a human against
-   the actual contracts** — a negative is only valid if the clause really is
-   absent.
+1. Draft generated with BM25 near-miss mining, then **verified against the actual
+   contracts** — a negative is only valid if the clause really is absent.
 2. Each entry records: `query`, `type` (1–4), `rationale`, `related_docs`,
    `related_clauses`, and its `split` from `assign_split`.
 3. The set is committed **before** the improvement loop starts, in its own
    commit, and is never edited afterwards. The commit is the evidence.
 4. It is split with the same `assign_split` function as the benchmark: ~30% test.
-   With 45 queries that is ~13 test negatives — small, so test abstention numbers
-   are reported with an interval, not three significant figures.
+   With 46 queries, 12 are in test — small, so test abstention numbers are
+   reported with an interval, not three significant figures.
 5. Validation: a script re-checks that no query in the set is answerable by any
    ground-truth span (exact and fuzzy containment), so a mislabelled negative
    cannot quietly poison the curve.
@@ -85,8 +84,8 @@ pattern to be precise.
 - One parameter, easy to explain.
 - Breaks down because scores are not comparable across query types or retrievers:
   a BM25 score of 8 and a cosine of 0.62 mean different things.
-- ⚠️ This is the strawman the plan criticises. It must be included so the
-  improvement is measurable, not assumed.
+- This is the simple baseline that a score threshold represents. It is included so
+  the improvement is measurable, not assumed.
 
 ### 2. Margin rule
 
@@ -103,7 +102,7 @@ A threshold calibrated separately for each clause category on train.
 
 - Rationale: some clause questions ("governing law") are almost always present
   somewhere; others are rare and yield weak matches everywhere.
-- ⚠️ Risk: 32 categories over 140 train queries means ~4 queries per category.
+- **Risk:** 32 categories over 140 train queries means ~4 queries per category.
   Mitigation: calibrate per category where `n ≥ 8`, fall back to the global
   threshold elsewhere. Report how many categories fell back. This is honest and
   still tests the hypothesis.
@@ -180,11 +179,28 @@ Nested operating points (threshold chosen on four folds, applied to the fifth):
    is the evaluated configuration; `configs/serve.yaml` lowers the threshold for the
    demo. This is a benchmark-style dependence, not a model failure.
 
-⚠️ A first classifier looked near-perfect (false abstention 0.000) because
+**Caveat:** A first classifier looked near-perfect (false abstention 0.000) because
 `query_len` separated the classes by construction: the authored negatives are 51–151
 characters against benchmark queries of 134–243. It was learning who wrote the
 query. The feature is excluded from `FEATURE_NAMES` and a regression test enforces
 it.
+
+### Test-split result (final reporting)
+
+`python -m eval.run_abstention --config configs/final.yaml --split test
+--i-know-this-is-final` — the fixed `0.9018` threshold from `configs/final.yaml`
+applied to 54 answerable test queries and 12 test negatives, on the same
+21-document test index used by the retrieval evaluation. No threshold is selected
+on test.
+
+| direction | rate | 95% CI | n |
+|---|---|---|---|
+| false abstention | 0.148 | [0.056, 0.241] | 54 |
+| correct abstention | 0.917 | [0.750, 1.000] | 12 |
+
+Per-type correct abstention: type 1 1.00 (n=1), type 2 1.00 (n=5), type 3 0.75
+(n=4), type 4 1.00 (n=2). The interval on 12 negatives is wide; this is an
+estimate, and the test composition differs from the 34 train negatives.
 
 ## Interaction with answerable-query metrics
 

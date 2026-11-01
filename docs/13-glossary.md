@@ -13,7 +13,7 @@ least one ground-truth span.
 **Unanswerable query** — a member of the authored negative set (`data/unanswerable.jsonl`),
 with no ground-truth span anywhere in the indexed corpus.
 
-**Assignment / split** — `assign_split(query)`: SHA-256 of the stripped query text,
+**Split assignment** — `assign_split(query)`: SHA-256 of the stripped query text,
 mod 10, `< 3` → test. Fixed forever.
 
 **Benchmark** — the CUAD subset of LegalBench-RAG, capped at 194 queries by the
@@ -79,12 +79,12 @@ hits any ground truth. Zero if nothing hits.
 **n** — the number of queries a reported statistic is computed over. Always printed
 next to per-category numbers.
 
-**Negative set** — the frozen collection of 40–50 unanswerable queries, with types
+**Negative set** — the frozen collection of 46 unanswerable queries, with types
 1–4.
 
 **mini()** — *does not exist upstream.* The selection is inline logic in
 `legalbenchrag/benchmark.py`; `src/data.py::select_mini` reproduces it. The name is
-kept because the build plan used it.
+kept as the conventional label for the selection.
 
 **Pairwise/paired bootstrap** — resampling queries with replacement, with both
 systems scored on the same resampled set, to get a confidence interval on the

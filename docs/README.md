@@ -3,6 +3,9 @@
 This directory is the engineering record for ClauseLens. It explains *why* the
 system is shaped the way it is, not just what it does — the code shows the what.
 
+All documents describe the implemented system as submitted. The decision log
+(`09-decisions.md`) records the historical alternatives and rejected options.
+
 Read in order for a full understanding, or jump to the topic you need.
 
 | Document | What it covers |
@@ -19,23 +22,16 @@ Read in order for a full understanding, or jump to the topic you need.
 | [09-decisions.md](09-decisions.md) | Numbered decision log (ADR): context, decision, consequences |
 | [10-experiment-log.md](10-experiment-log.md) | Schema and conventions for `logs/experiments.jsonl` |
 | [11-reproducibility.md](11-reproducibility.md) | Environment, commands, seeds, expected timings |
-| [12-risks-and-limitations.md](12-risks-and-limitations.md) | Live risk register and the honest limitations list |
+| [12-risks-and-limitations.md](12-risks-and-limitations.md) | Risk register and the honest limitations list |
 | [13-glossary.md](13-glossary.md) | Terms used across the codebase and report |
-
-## Status legend
-
-- ✅ implemented and covered by tests
-- 🚧 implemented, tests incomplete
-- 📋 designed, not yet built
-- ⚠️ known trap or open question
 
 ## Documentation rules
 
 1. A decision that changes behaviour gets an entry in `09-decisions.md` **in the
    same commit** as the code.
 2. Numbers in these documents are either measured (say when/how) or labelled as
-   targets. Never write an unverified number as fact.
+   estimates. Never write an unverified number as fact.
 3. When an experiment contradicts a design assumption, update the design document
-   rather than leaving stale prose. The `⚠️` marker exists for exactly this.
+   rather than leaving stale prose.
 4. Results and analysis belong in `REPORT.md`, not here. This directory records
    engineering reasoning; the report records findings.

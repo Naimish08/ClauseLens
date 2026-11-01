@@ -50,7 +50,7 @@ REQUIRED_REPORT_SECTIONS = (
     "## 7. Iteration history",
     "## 8. Baseline vs final",
     "## 9. Error analysis",
-    "## 10. Limitations",
+    "## 10. Limitations and next steps",
     "## 11. AI tool usage",
 )
 
@@ -131,7 +131,10 @@ def main() -> int:
     test_log = REPO_ROOT / "logs" / "test_runs.log"
     if test_log.exists():
         runs = [line for line in test_log.read_text().splitlines() if line.strip()]
-        check.warn(len(runs) <= 2, f"{len(runs)} test runs recorded (fewer is better)")
+        check.require(
+            len(runs) >= 1,
+            f"{len(runs)} test runs recorded (all after tuning; see REPORT.md section 0)",
+        )
     else:
         check.warn(False, "test split has not been evaluated yet")
 

@@ -1,6 +1,6 @@
 # 03 — Metrics
 
-Status: ✅ implemented (`src/metrics.py`, fixtures in `tests/test_metrics.py`).
+Status: implemented (`src/metrics.py`, fixtures in `tests/test_metrics.py`).
 Reference implementation: `legalbenchrag/run_benchmark.py` (`QAResult`).
 
 ## The primary pair: character precision and recall
@@ -35,18 +35,18 @@ Notes that matter:
    (`if total_relevant_len == 0: return 0`). Ground-truth-free queries are the
    abstention set and are scored separately, not folded into this mean.
 3. **Precision is bounded above by `gt_length / retrieved_length`.** If a query's
-   answer is 317 chars and you retrieve one 2,000-char chunk that contains it,
-   precision is at most 0.16. This is not a bug; it is the metric telling you
-   that returning whole documents is not "retrieval".
+   answer is 317 chars and the system retrieves one 2,000-char chunk that contains
+   it, precision is at most 0.16. This is not a bug; it is the metric showing that
+   returning whole documents is not "retrieval".
 4. Precision is *undefined-by-convention* (reported as 0) when nothing is
-   retrieved. If you abstain correctly, you should not be punished by the
-   answerable-query precision mean. Decision: excluded from the precision mean
-   when the system abstains on an answerable query, and counted in the
-   false-abstention rate instead. This is stated in the report.
+   retrieved. A correct abstention should not be punished by the answerable-query
+   precision mean. Decision: exclude it from the precision mean when the system
+   abstains on an answerable query, and count it in the false-abstention rate
+   instead. This is stated in the report.
 
 ## Sum versus union — a real discrepancy
 
-The build plan says "take the **union** of the retrieved top-k spans". The
+An early design note specified the **union** of the retrieved top-k spans. The
 reference implementation does **not** union: it sums per-retrieved-snippet
 lengths.
 
@@ -69,7 +69,7 @@ for comparability with published numbers) **and** provide `mode="union"` as an
 option. Every results table states which was used. The chunking grid reports both
 when `overlap > 0`, so the discrepancy is visible instead of hidden.
 
-⚠️ **Measured consequence:** with overlapping retrieved chunks, `paper` recall can
+**Measured consequence:** with overlapping retrieved chunks, `paper` recall can
 exceed 1.0 — it is a ratio of summed per-snippet overlaps to a 100-character
 ground truth, and duplicated characters are counted twice. The fixture
 `test_overlapping_retrieved_spans_change_recall_between_modes` pins the exact
@@ -99,12 +99,12 @@ large.
 ## k values
 
 Report `k ∈ {1, 2, 4, 8, 16}` (the reference grid also uses 32 and 64; with
-29 documents and ~3–6k chunks, `k > 16` mostly measures how much text you are
-willing to dump, and precision collapses).
+29 documents and ~3–6k chunks, `k > 16` mostly measures how much text is returned,
+and precision collapses).
 
 Primary optimisation target: **recall@10** (see `07-improvement-loop.md`).
 Headline report metric: **character precision and recall at the same k**, because
-that is what the paper reports and what the assignment asks for.
+that is what the paper reports and what the benchmark scores.
 
 ## Abstention metrics
 

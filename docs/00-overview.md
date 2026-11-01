@@ -16,14 +16,13 @@ capped at 194 queries, scored at character-level precision and recall.
 
 ## Why this framing
 
-A conventional submission looks like: chunk → embed → top-k → demo → report
+A conventional pipeline looks like: chunk → embed → top-k → demo → report
 saying "it works". Three problems with that:
 
 1. **No comparison.** Without a fixed metric implementation and a fixed code path,
    "BM25 beat dense retrieval" is an anecdote about two different scripts.
 2. **No error budget.** Character-level precision punishes large chunks brutally.
-   If you never plot precision against chunk size you learn nothing about why
-   your score is what it is.
+   Without a precision-vs-size plot, a score cannot be explained.
 3. **No honesty mechanism.** Tuning against the test set is invisible unless the
    split and the run count are enforced by tooling.
 
@@ -46,7 +45,7 @@ split/test-run accounting is enforced in code.
 | Interfaces | Streamlit app, CLI |
 | Write-up | README, REPORT, 10+ diagnosed failures |
 
-**Explicitly out of scope** (cut on 2026-11-01 to protect the deadline):
+**Explicitly out of scope** (deliberate scope decisions, ADR-008):
 
 - Any LLM: query rewriting, LLM reranking, LLM proposal in the loop
 - `bge-m3` and `Qwen3-Embedding-0.6B` (keep the embedder study to three models)
@@ -61,7 +60,7 @@ an omission. The report states it in Limitations.
 
 ## Success criteria
 
-The project is done when all of the following hold:
+The project is complete when all of the following hold:
 
 1. `make data && make verify` reproduces the corpus and confirms every
    ground-truth span, reporting mismatches rather than repairing them.
@@ -75,13 +74,11 @@ The project is done when all of the following hold:
    iteration history, a 10-item error analysis, and limitations.
 7. Every reported number is reproducible from a config file in the repository.
 
-## The deadline constraint
+## Scope and time-box
 
-The assignment deadline is Monday 2 November 2026, 17:00 IST. The original plan
-budgeted ~30 hours of work against ~40 hours of wall clock. The scope above was
-therefore fixed on day one, before implementation, so that cuts are a decision
-rather than an accident. `12-risks-and-limitations.md` tracks what is still at
-risk.
+The scope above was fixed before implementation, so that cuts are a recorded
+decision rather than an accident. `12-risks-and-limitations.md` lists the
+limitations that remain in the submitted system.
 
 ## Reader's guide
 

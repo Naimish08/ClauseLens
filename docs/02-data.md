@@ -1,6 +1,6 @@
 # 02 — Data
 
-Status: ✅ implemented (`src/data.py`, `scripts/download_data.py`,
+Status: implemented (`src/data.py`, `scripts/download_data.py`,
 `scripts/verify_data.py`, `tests/test_data.py`).
 
 All numbers in this document are **measured on the downloaded data** on
@@ -22,10 +22,10 @@ The archive contains **four** benchmarks (`cuad`, `maud`, `privacy_qa`,
 `contractnli`) and 714 corpus files. Only CUAD is evaluated in this project; the
 others are downloaded because they arrive in the same archive and are ignored.
 
-## The reference selection, and why the plan's wording was wrong
+## The reference selection
 
-The build plan described "the authors' `mini()` function". **No such function
-exists upstream.** The actual logic lives inline in
+The task description refers to "the authors' `mini()` function". **No such
+function exists upstream.** The actual logic lives inline in
 `legalbenchrag/benchmark.py`:
 
 ```python
@@ -82,8 +82,8 @@ Measured on the 194 mini queries:
 | train | 140 |
 | test | 54 |
 
-The plan estimated ~135/59; the real split is 140/54 (72% / 28%). Either way,
-"about 135 train queries" is close enough for the noise argument in
+The real split is 140/54 (72% / 28%), close to the initial estimate of ~135/59.
+Either way, "about 135 train queries" is close enough for the noise argument in
 `07-improvement-loop.md`.
 
 Properties to preserve:
@@ -111,7 +111,7 @@ set from the selected queries. Indexing all 462 CUAD contracts would change
 nothing except latency — and would silently turn "document routing" into a much
 harder problem than the benchmark intends.
 
-⚠️ **The median answer is 317 characters.** This single fact drives the whole
+**Key observation:** the median answer is 317 characters. This single fact drives the whole
 chunking study: character precision is `overlap / retrieved_length`, so returning
 one 2,000-character chunk around a correct 317-character answer scores roughly
 16% precision even though the answer was found. See `03-metrics.md`.
@@ -136,16 +136,15 @@ therefore reads in `raw` mode (bytes → UTF-8 decode), which cannot drift with
 platform newline translation, and keeps the `text` mode in the verifier as a
 regression check.
 
-⚠️ **Trap avoided:** the plan said to read "in Python's default text mode with
-UTF-8 so character offsets line up". Default text mode performs universal-newline
-translation, so on a CRLF file every offset after the first line ending shifts.
-It happens not to matter for this corpus, but the reasoning was wrong. See
+**Design note:** default text mode performs universal-newline translation, so on a
+CRLF file every offset after the first line ending shifts. That does not affect
+this corpus, but reading in `raw` mode is the safer contract. See
 `09-decisions.md` ADR-004.
 
-⚠️ **Trap avoided:** the benchmark JSON **does** contain an `answer` field, even
+**Design note:** the benchmark JSON **does** contain an `answer` field, even
 though the reference code exposes it as a Pydantic `computed_field`. Offsets could
-therefore be verified without the corpus. We verify against freshly read corpus
-text instead, which also validates the download.
+therefore be verified without the corpus. The verifier checks against freshly read
+corpus text instead, which also validates the download.
 
 ## Query structure
 

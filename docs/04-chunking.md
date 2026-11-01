@@ -1,6 +1,6 @@
 # 04 — Chunking
 
-Status: ✅ `fixed`, `recursive`, `sentence` and `clause` implemented, span-validated
+Status: `fixed`, `recursive`, `sentence` and `clause` implemented, span-validated
 and measured. Parent–child and contextual enrichment remain deferred.
 
 Chunking is the single biggest lever on **character precision**, because

@@ -29,11 +29,11 @@ artifacts/
 .vscode/
 .ipynb_checkpoints/
 
-# --- Local planning notes ---
-# The build plan is a restatement of the assignment brief; keep it out of the
-# repository (see AGENTS.md). Files stay on disk. Force-add with `git add -f`.
-Contract Clause Retrieval Build Plan-1.md
-Contract Clause Retrieval Build Plan-1.pdf
+# --- Confidential assignment material ---
+# The task PDF and the local build-plan restatement are not part of the
+# submission and must never be committed.
+Jio Star Take Home Assignment*.pdf
+Contract Clause Retrieval Build Plan-1.*
 
 # --- Secrets ---
 .env

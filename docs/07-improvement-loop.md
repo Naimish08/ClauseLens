@@ -1,6 +1,7 @@
 # 07 — Improvement loop
 
-Status: 📋 designed, `loop/` pending.
+Status: implemented. `loop/` ran 14 iterations beyond the baseline; the accepted
+and rejected records are in `logs/experiments.jsonl` and REPORT section 7.
 
 One command that evaluates on **train only**, diagnoses failures, proposes a
 change, and accepts or rejects it by a statistical criterion. Every iteration —
@@ -14,7 +15,8 @@ make loop CONFIG=configs/baseline.yaml
 
 - **Primary metric:** `recall@10` (character recall at k=10) on train.
 - **Guardrails:** character precision@10 and false-abstention rate.
-- **Constraint:** latency per query must not exceed 1.5× the baseline's.
+- **Constraint:** latency per query must stay within `max(250 ms, 1.5× the
+  baseline's)` (ADR-018).
 
 Rationale for choosing recall as primary:
 
@@ -98,7 +100,7 @@ Three gates, all must pass:
 If all pass → accept: the candidate becomes the new current config. Otherwise →
 reject, with the failing gate recorded.
 
-⚠️ **Why not "the number went up":** with 140 queries, one query flipping can move
+**Why not "the number went up":** with 140 queries, one query flipping can move
 recall by ~0.007. An improvement of 0.01 is barely above that noise floor, which is
 why the paired bootstrap is mandatory rather than decorative.
 

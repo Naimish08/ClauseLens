@@ -23,7 +23,7 @@ makes the "no leakage" claim checkable by reading one file.
 
 ## Layers and responsibilities
 
-### 1. Data layer — `src/data.py` ✅
+### 1. Data layer — `src/data.py`
 
 Owns all filesystem access to the benchmark and corpus. Nothing else reads a
 corpus file. Provides:
@@ -38,20 +38,20 @@ corpus file. Provides:
 **Why one module:** every downstream number depends on spans being interpreted
 against identical text. Duplicating file reads is how offset bugs are born.
 
-### 1b. Shared types — `src/types.py` ✅
+### 1b. Shared types — `src/types.py`
 
 `Chunk` and `RetrievedSpan` plus span utilities (`sort_and_merge_spans`,
 `sort_retrieved`, `contains`). One definition so chunkers, retrievers, metrics and
 the pipeline cannot disagree about shape or ordering.
 
-### 1c. Metrics — `src/metrics.py` ✅
+### 1c. Metrics — `src/metrics.py`
 
 The single source of truth for scoring: character precision/recall in `paper` and
 `union` modes, doc-hit, span-hit, chunk-hit, MRR, macro-aggregation, per-category
 grouping, abstention summaries, and paired bootstrap. Nothing else computes a
 score.
 
-### 2. Chunking — `src/chunking/` ✅
+### 2. Chunking — `src/chunking/`
 
 `fixed`, `recursive`, `sentence` and `clause` are implemented, span-validated and
 compared in the grid (`docs/04-chunking.md`).
@@ -68,7 +68,7 @@ class Chunker(Protocol):
     def chunk(self, document: Document) -> list[Chunk]: ...
 ```
 
-### 3. Retrieval — `src/retrieval/` ✅
+### 3. Retrieval — `src/retrieval/`
 
 `bm25`, `dense` (bge/gte/e5), `hybrid` (RRF) and `rerank` (cross-encoder
 composition) are implemented (`docs/05-retrieval.md`, ADR-016).
@@ -84,14 +84,14 @@ class Retriever(Protocol):
 `chunk_id`. Retrievers are stateless with respect to queries; all state is built
 by `index()`.
 
-### 4. Reranking — `src/retrieval/rerank.py` ✅
+### 4. Reranking — `src/retrieval/rerank.py`
 
 Implemented as a retriever wrapper (`RerankRetriever`), not a pipeline stage
 (ADR-016): it fetches `candidates` from a base retriever and reorders by
 cross-encoder score. It needs chunk text, so it stores a text lookup at index
 time; `RetrievedSpan` stays offsets-only.
 
-### 5. Abstention — `src/abstain.py` ✅
+### 5. Abstention — `src/abstain.py`
 
 `none`, `threshold`, `margin` and `category` are implemented and compared on a
 trade-off curve; the logistic classifier is fitted offline in
@@ -108,22 +108,20 @@ between rank 1 and 2, document-match confidence (if a router ran), BM25/dense
 agreement, number of results above a low floor. A policy returns `abstain: bool`
 plus a human-readable reason, which the app and CLI display.
 
-### 6. Pipeline — `src/pipeline.py` ✅
+### 6. Pipeline — `src/pipeline.py`
 
 The only component that knows about all stages. Builds stages from a config,
 indexes once, exposes `search(query) -> PipelineResult`. No branching on
 "which chunker is this" — stages are polymorphic.
 
-### 7. Evaluation — `eval/` 🚧
+### 7. Evaluation — `eval/`
 
-Single-config evaluation with run artefacts and the test-run guard is implemented;
-the comparison grids are pending (`docs/08-evaluation-protocol.md`).
-
+Single-config evaluation, comparison grids and reporting tables are implemented.
 Calls `pipeline.search()` for every query in a split, scores with `src/metrics.py`,
 aggregates, and writes a results table (CSV + markdown) and a JSON detail file
 for error analysis.
 
-### 8. Loop — `loop/` 📋
+### 8. Loop — `loop/`
 
 Consumes an evaluation result, diagnoses failures, proposes config changes,
 re-evaluates, and accepts or rejects them statistically. It writes only to
@@ -191,7 +189,7 @@ test or an enforcement point.
 | I7 | Same config + same seed ⇒ same output | determinism test on a small fixture |
 | I8 | The unanswerable set is frozen once committed | `data/unanswerable.jsonl` + git history |
 
-## Request flow (final target)
+## Request flow
 
 ```
 query

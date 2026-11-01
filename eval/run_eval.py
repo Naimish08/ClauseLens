@@ -246,19 +246,28 @@ def write_csv(result: EvalResult, path: Path) -> None:
             writer.writerow([k, *(f"{getattr(agg, c):.6f}" for c in AGGREGATE_COLUMNS), agg.n])
 
 
-def log_test_run(result: EvalResult, reason: str) -> None:
+def log_test_event(*, run_id: str, config: PipelineConfig, reason: str) -> None:
+    """Append one test-split evaluation to the audit log.
+
+    Used by both retrieval and abstention evaluations so every use of the test
+    split is accounted for in one place.
+    """
     TEST_RUN_LOG.parent.mkdir(parents=True, exist_ok=True)
     entry = {
         "timestamp": datetime.now(UTC).isoformat(timespec="seconds"),
-        "run_id": result.run_id,
-        "config": result.config.name,
-        "config_hash": result.config.hash(),
+        "run_id": run_id,
+        "config": config.name,
+        "config_hash": config.hash(),
         "git_sha": git_sha(),
         "git_dirty": git_dirty(),
         "reason": reason,
     }
     with TEST_RUN_LOG.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(entry) + "\n")
+
+
+def log_test_run(result: EvalResult, reason: str) -> None:
+    log_test_event(run_id=result.run_id, config=result.config, reason=reason)
 
 
 # --------------------------------------------------------------------------- #

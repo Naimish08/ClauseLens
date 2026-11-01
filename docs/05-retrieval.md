@@ -1,7 +1,8 @@
 # 05 — Retrieval
 
-Status: ✅ BM25, dense, hybrid and reranker implemented and measured
-(`make retrieval-grid`). The document router remains unbuilt.
+Status: BM25, dense, hybrid and reranker implemented and measured
+(`make retrieval-grid`). The document router is evaluated as an ablation and is
+not a shipped feature (ADR-010).
 
 ## The document-routing lever
 
@@ -15,11 +16,11 @@ retrieval. Two ways this matters:
 1. **The honest baseline must not use it.** BM25/dense over all 29 documents is
    the real baseline; a router is an *additional* stage whose contribution is
    measured as an ablation, not baked into every number.
-2. **The router is nearly free and should be attempted.** Restricting the search
-   space to one document removes 28/29 of the distractors, which mostly improves
-   precision (no cross-document near-duplicate clauses).
+2. **The router is nearly free and was measured as an ablation.** Restricting the
+   search space to one document removes 28/29 of the distractors, which mostly
+   improves precision (no cross-document near-duplicate clauses).
 
-Three routing conditions are compared:
+Three routing conditions were designed:
 
 | Router | Input | Expected |
 |---|---|---|
@@ -27,10 +28,10 @@ Three routing conditions are compared:
 | `prefix` | string match of the `Consider the ...` hint against document metadata | near-perfect document ID; isolates whether the benchmark is "too easy" with the hint |
 | `semantic` | embed the prefix, cosine against document embeddings | realistic deployment behaviour where no hint exists |
 
-Because the hint is a benchmark artefact, the report must state clearly that
-`prefix` routing is not deployable as-is, and that `semantic` routing is the
-number to trust. This is exactly the kind of honesty the assignment is looking
-for.
+The prefix ablation is the routing comparison reported in the results; a semantic
+router is designed but not shipped (ADR-010). Because the hint is a benchmark
+artefact, the report states that `prefix` routing is not deployable as-is and that
+a semantically routed system is the deployment target.
 
 Optional second lever, measured as a query-preprocessing ablation: strip the
 `"Consider the ...;"` prefix entirely and retrieve on the clause question alone.
@@ -62,10 +63,10 @@ router) to pick the document, then rank clauses inside it.
 Implemented in-house (`src/retrieval/bm25.py`) rather than pulled from a package,
 for three reasons:
 
-1. We need scores mapped back to the exact chunk spans, so we control the
-   index anyway.
+1. The harness needs scores mapped back to the exact chunk spans, so it controls
+   the index anyway.
 2. `rank_bm25` has no notion of character offsets and its tokeniser is fixed.
-3. BM25 is ~50 lines and must be explainable in the debrief.
+3. BM25 is about 50 lines, which keeps its behaviour auditable.
 
 Details:
 
@@ -164,9 +165,9 @@ Held chunking at sentence-1024-15%, 140 train queries. Full table:
    the latency of gte-base.
 5. Hybrid index times above are cache hits, not real build costs.
 
-⚠️ Consequence for the loop: its original rule order tried hybrid before dense, so
-it settled at 0.409 when dense alone reaches higher. The rule table now includes a
-dense step before hybrid (ADR-019).
+**Caveat for the loop:** its original rule order tried hybrid before dense, so it
+settled below dense alone. The rule table now includes a dense step before hybrid
+(ADR-019).
 
 ## Comparison table the code must produce
 

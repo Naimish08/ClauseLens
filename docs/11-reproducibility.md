@@ -1,6 +1,6 @@
 # 11 — Reproducibility
 
-Status: ✅ environment verified on 2026-11-01.
+Status: environment verified on 2026-11-01.
 
 ## Environment actually used
 
@@ -23,8 +23,10 @@ uv pip install -e ".[ml]"    # torch, sentence-transformers, transformers
 uv pip install -e ".[app]"   # streamlit
 ```
 
-Record the resolved `torch`/`transformers` versions in this table when they are
-first installed, because dense scores are not reproducible across major versions.
+The dense stack was resolved to the versions installed by the pinned environment;
+because dense scores can shift across major `torch`/`transformers` releases, the
+embedding cache and per-query ranks are the reproducibility boundary rather than
+the raw float values.
 
 ## From clean clone to first result
 
@@ -32,11 +34,13 @@ first installed, because dense scores are not reproducible across major versions
 make setup      # uv venv --python 3.12 + core deps          (~20 s)
 make data       # download + unpack LegalBench-RAG           (~11 s, 90.6 MB)
 make verify     # offset integrity check                     (~0.1 s)
-make test       # 21 tests                                   (~0.2 s)
+make test       # 251 tests                                  (~3 s)
 make eval CONFIG=configs/baseline.yaml
 ```
 
-No API keys, no accounts, no network access after `make data`.
+No API keys and no accounts are required. BM25 configurations run offline after
+`make data`; dense configurations download model weights on first use, then run
+offline from the local cache.
 
 ## Determinism
 
@@ -66,10 +70,9 @@ Cache keys hash the *chunk configuration and corpus manifest hash*, so changing 
 chunk size never silently reuses stale vectors. Clearing caches is always safe:
 `make clean` removes `artifacts/`.
 
-## Measured (2026-11-01, baseline)
+## Measured (2026-11-01)
 
-Real numbers replace the targets below as stages land. Baseline config
-(`configs/baseline.yaml`, fixed-512, BM25, 140 train queries):
+Baseline config (`configs/baseline.yaml`, fixed-512, BM25, 140 train queries):
 
 | Step | Measured |
 |---|---|
@@ -77,31 +80,21 @@ Real numbers replace the targets below as stages land. Baseline config
 | Index build (chunk + BM25) | included in the run below |
 | Full eval run (chunk + index + 140 queries) | **0.74 s** wall clock |
 | Full chunking grid (24 variants × 140 queries) | **22 s** wall clock |
-| Abstention comparison (4 policies, 174 queries, 5 folds) | **1.9 s** wall clock |
-| Dense index (gte-base, 1442 chunks, fixed-1024) | **13.4 s** |
+| Abstention comparison, baseline (4 policies, 174 queries, 5 folds) | **1.9 s** wall clock |
+| Abstention comparison, final dense config (4 policies, 174 queries, 5 folds) | **~20 s** wall clock |
+| Dense index (gte-base, fixed-1024, 1203 train chunks) | **23.5 s** |
+| Dense index (gte-base, sentence-1024, 1442 chunks; retrieval grid) | **45 s** |
 | Dense query latency (gte-base) | median **10.8 ms**, p95 17.7 ms |
 | Dense query latency (e5-large) | median 32.8 ms, p95 196 ms |
 | Cross-encoder rerank (50 candidates) | median **1,073 ms** |
 | Retrieval grid (7 configurations) | **~11 min** wall clock |
 | Per-query latency (BM25) | median **3.5 ms**, p95 **4.6 ms** |
-| Test suite | 98 tests, 0.4 s |
+| Test suite | **251 tests, 3.0 s** |
 
-## Targets (to be replaced with measurements)
-
-| Step | Corpus size | Expected |
-|---|---|---|
-| Parse + chunk 29 documents | ~2 MB | < 2 s |
-| BM25 index | ~3–6k chunks | < 1 s |
-| Dense index (`bge-base`) | ~6k chunks | 1–3 min on GPU |
-| Dense index (`e5-large`) | ~6k chunks | 3–8 min on GPU |
-| One eval run (140 queries, BM25) | — | < 5 s |
-| One eval run (140 queries, dense) | — | ~15 s |
-| Rerank 50 candidates × 140 queries | — | ~2–4 min |
-| Full chunk grid | 9 configs | ~5 min (BM25) |
-
-Indexing dominates; query-time latency is milliseconds for BM25 and tens of
-milliseconds for dense. This is why compute is not the project's bottleneck — the
-authoring and analysis are (`12-risks-and-limitations.md`).
+Indexing dominates wall-clock time; query-time latency is milliseconds for BM25 and
+tens of milliseconds for dense. Compute is therefore not the limiting cost of the
+experiment — authoring the negatives and analysing failures are
+(`12-risks-and-limitations.md`).
 
 ## Data version pinning
 

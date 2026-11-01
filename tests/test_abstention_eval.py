@@ -8,6 +8,7 @@ from eval.run_abstention import (
     POLICIES,
     Sample,
     choose_operating_point,
+    decisions_at_threshold,
     evaluate_threshold,
     nested_decisions,
     summarise,
@@ -125,6 +126,20 @@ def test_summarise_matches_evaluate_threshold() -> None:
 
 def test_policy_list_is_complete() -> None:
     assert set(POLICIES) == {"threshold", "margin", "category", "classifier"}
+
+
+def test_decisions_at_threshold_uses_the_fixed_value() -> None:
+    samples = [
+        sample(0.95, answerable=True),
+        sample(0.80, answerable=True),
+        sample(0.85, answerable=False, type_id=2),
+        sample(0.40, answerable=False, type_id=4),
+    ]
+    decisions = decisions_at_threshold(samples, 0.9018)
+    assert [d.abstain for d in decisions] == [False, True, True, True]
+    point = summarise(decisions, 0.9018)
+    assert point.false_abstention_rate == 0.5
+    assert point.correct_abstention_rate == 1.0
 
 
 def test_thresholds_from_sweep_are_finite() -> None:

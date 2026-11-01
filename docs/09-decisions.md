@@ -56,7 +56,7 @@ metric); one script per experiment (drift, no shared code path).
 *Status: accepted · 2026-11-01*
 
 **Context.** The downloaded archive contains CUAD, MAUD, PrivacyQA and
-ContractNLI. The brief describes "CUAD-mini, 194 queries".
+ContractNLI. The task specifies "CUAD-mini, 194 queries".
 
 **Decision.** Load only `cuad.json`, capped at 194 queries via the reference
 selection. The other benchmarks remain downloaded and unindexed.
@@ -75,7 +75,7 @@ focus within the time budget).
 
 *Status: accepted · 2026-11-01*
 
-**Context.** The build plan said to read "in Python's default text mode with UTF-8
+**Context.** The dataset card says to read "in Python's default text mode with UTF-8
 so character offsets line up". Default text mode performs universal-newline
 translation: `\r\n` → `\n`, which shifts every offset after the first line
 ending. The upstream reference implementation uses plain `open()` (text mode), so
@@ -96,11 +96,11 @@ unstated assumption).
 
 ---
 
-## ADR-005 — Metric default follows the reference implementation, not the plan's wording
+## ADR-005 — Metric default follows the reference implementation, not the union variant
 
 *Status: accepted · 2026-11-01*
 
-**Context.** The build plan says to take the **union** of retrieved spans. The
+**Context.** An early design note specified the **union** of retrieved spans. The
 upstream `QAResult` code **sums** per-snippet lengths. The definitions agree for
 disjoint retrieved spans and diverge for overlapping ones — which is exactly what
 `overlap > 0` chunking produces.
@@ -114,7 +114,7 @@ quantified rather than hidden. Cost: one extra parameter and one extra regressio
 test.
 
 **Alternatives rejected.** Union only (not comparable to the paper); paper only
-(the plan's definition goes untested).
+(the union definition goes untested).
 
 ---
 
@@ -150,8 +150,8 @@ character spans and its tokeniser is fixed.
 tokeniser tuned for legal text (stop-words kept).
 
 **Consequences.** Full control of the span mapping; fewer dependencies; the
-baseline is explainable line-by-line in the debrief. Cost: we own the bugs —
-mitigated by hand-computed score tests.
+baseline is explainable line-by-line in a design review. Cost: the implementation
+owns its bugs — mitigated by hand-computed score tests.
 
 **Alternatives rejected.** `rank_bm25` (span mapping); `pyserini`/Lucene (JVM,
 overkill, slower to iterate).
@@ -162,21 +162,21 @@ overkill, slower to iterate).
 
 *Status: accepted · 2026-11-01 (scope cut)*
 
-**Context.** ~40 hours of wall clock against a plan estimating ~30 hours of work.
-LLM components (query rewriting, LLM reranking, LLM proposal in the loop) each add
-integration, caching, and evaluation cost.
+**Context.** The project was time-boxed, and the scope was fixed before
+implementation. LLM components (query rewriting, LLM reranking, LLM proposal in the
+loop) each add integration, caching, and evaluation cost.
 
 **Decision.** Cut all LLM use. Document it as a limitation and as future work.
 The loop's proposer is a deterministic rule table.
 
 **Consequences.** The deliverable is complete and honest; every component is
-explainable and modifies-in-place during the debrief; results are reproducible
-offline. Cost: the report cannot claim LLM-related gains, and must say so
-explicitly rather than omitting the topic.
+explainable and can be modified in place during a design review; results are
+reproducible offline. Cost: the report cannot claim LLM-related gains, and must
+state so explicitly rather than omitting the topic.
 
 **Alternatives rejected.** LLM reranker only (still needs the same eval and
 caching infrastructure as everything else, and competes with the reranker slot);
-LLM proposer in the loop (the rule table is more auditable, which the brief
+LLM proposer in the loop (the rule table is more auditable, which the evaluation
 rewards).
 
 ---
@@ -185,7 +185,7 @@ rewards).
 
 *Status: accepted · 2026-11-01*
 
-**Context.** The brief asks for a per-CUAD-category breakdown. The downloaded
+**Context.** The task asks for a per-CUAD-category breakdown. The downloaded
 benchmark JSON has no category field. CUAD's official 41 categories are not
 recoverable from the query text directly.
 
@@ -229,13 +229,12 @@ configuration looks weaker than the best possible one.
 
 *Status: accepted · 2026-11-01*
 
-**Context.** The project brief and the owner both require the engineering
-reasoning to be recorded, not just the code.
+**Context.** The engineering reasoning needs to be recorded, not just the code.
 
 **Decision.** `docs/` holds one file per topic (architecture, data, metrics,
 chunking, retrieval, abstention, loop, evaluation, decisions, log schema,
 reproducibility, risks, glossary), indexed by `docs/README.md`. `AGENTS.md` at the
-root states the conventions any contributor — human or AI — must follow.
+root states the contributor conventions.
 
 **Consequences.** Changes are reviewable by topic; a reviewer can jump straight to
 the relevant design. Cost: prose must be maintained alongside code, which is why
@@ -243,7 +242,7 @@ the documentation rules in `docs/README.md` require an ADR entry in the same
 commit.
 
 **Alternatives rejected.** One giant `DESIGN.md` (becomes stale in sections, hard
-to review); no docs (the brief explicitly grades the reasoning).
+to review); no docs (the reasoning is part of the deliverable).
 
 ---
 

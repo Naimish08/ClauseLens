@@ -1,6 +1,7 @@
 # 10 — Experiment log
 
-Status: 📋 schema defined, `loop/` pending.
+Status: implemented. `logs/experiments.jsonl` contains 15 records: the baseline and
+14 iterations, accepted and rejected.
 
 `logs/experiments.jsonl` is the append-only record of every loop iteration,
 accepted **and** rejected. It is committed to the repository; the git history plus
@@ -111,7 +112,7 @@ report is wrong.
 
 ## Why both accepted and rejected iterations are logged
 
-The brief explicitly requires it, and it is the cheapest defence against the
+The task requires logging both outcomes, and it is the cheapest defence against the
 impression of hindsight: a log containing only accepted changes looks like a plan
 written after the fact. A log with, say, 8 iterations and 3 rejections shows the
 search actually happened — and the rejections are themselves evidence that the
