@@ -99,7 +99,7 @@ def test_registry_builds_by_config_name() -> None:
     chunker = build_chunker("fixed", {"size": 32, "overlap": 0})
     assert chunker.name == "fixed"
     with pytest.raises(ValueError, match="unknown chunker"):
-        build_chunker("clause", {})
+        build_chunker("semantic", {})
 
 
 def test_validate_chunks_catches_a_corrupted_span() -> None:

@@ -51,10 +51,10 @@ The single source of truth for scoring: character precision/recall in `paper` an
 grouping, abstention summaries, and paired bootstrap. Nothing else computes a
 score.
 
-### 2. Chunking — `src/chunking/` 🚧
+### 2. Chunking — `src/chunking/` ✅
 
-`fixed` is implemented and span-validated; `recursive`, `sentence` and `clause`
-are pending (`docs/04-chunking.md`).
+`fixed`, `recursive`, `sentence` and `clause` are implemented, span-validated and
+compared in the grid (`docs/04-chunking.md`).
 
 Input: one `Document`. Output: `list[Chunk]`, each with an **exact character
 span** into that document's text. A chunk is invalid if

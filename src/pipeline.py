@@ -83,6 +83,7 @@ class Pipeline:
         self.abstainer = abstainer
         self.reranker = reranker
         self._chunk_ids: set[str] = set()
+        self._chunks: tuple[Chunk, ...] = ()
         self._indexed = False
         self.index_stats = IndexStats(0, 0, 0)
 
@@ -113,9 +114,15 @@ class Pipeline:
 
         self.retriever.index(chunks)
         self._chunk_ids = {chunk.chunk_id for chunk in chunks}
+        self._chunks = tuple(chunks)
         self._indexed = True
         self.index_stats = IndexStats(n_documents, len(chunks), characters)
         return self.index_stats
+
+    @property
+    def chunks(self) -> tuple[Chunk, ...]:
+        """The indexed chunks, for retrieval-free diagnostics (span containment)."""
+        return self._chunks
 
     def indexed_chunk_ids(self) -> set[str]:
         """Copy of the indexed chunk IDs; used to check invariant I2."""

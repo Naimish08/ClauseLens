@@ -31,10 +31,12 @@ from src.config import MetricMode, PipelineConfig, load_config
 from src.data import ARTIFACTS_DIR, REPO_ROOT, Document, Query, load_benchmark_split
 from src.metrics import (
     Aggregate,
+    ContainmentReport,
     QueryScore,
     aggregate,
     aggregate_by_category,
     score_query,
+    span_containment,
 )
 from src.pipeline import Pipeline
 
@@ -61,6 +63,7 @@ class EvalResult:
     scores: dict[int, list[QueryScore]]
     aggregates: dict[int, Aggregate]
     per_category: dict[str, Aggregate]
+    containment: ContainmentReport
     latencies_ms: list[float]
     index_stats: dict[str, int]
     run_dir: Path
@@ -78,6 +81,7 @@ class EvalResult:
             "mode": self.mode,
             "ks": list(self.ks),
             "index_stats": self.index_stats,
+            "span_containment": self.containment.as_dict(),
             "latency_ms": {
                 "median": percentile(self.latencies_ms, 50),
                 "p95": percentile(self.latencies_ms, 95),
@@ -134,6 +138,7 @@ def evaluate(
 
     pipeline = Pipeline.build(config)
     index_stats = pipeline.index(documents.values())
+    containment = span_containment(queries, pipeline.chunks)
 
     scores: dict[int, list[QueryScore]] = {k: [] for k in cutoffs}
     latencies: list[float] = []
@@ -159,6 +164,7 @@ def evaluate(
         scores=scores,
         aggregates=aggregates,
         per_category=aggregate_by_category(scores[config.top_k]),
+        containment=containment,
         latencies_ms=latencies,
         index_stats=index_stats.as_dict(),
         run_dir=ARTIFACTS_DIR / "runs" / run_id,
@@ -210,6 +216,8 @@ def render_markdown(result: EvalResult) -> str:
         f"- metric mode: `{result.mode}`",
         f"- index: {result.index_stats['documents']} docs, "
         f"{result.index_stats['chunks']} chunks, {result.index_stats['characters']} chars",
+        f"- span containment: {result.containment.mean:.3f} "
+        f"({result.containment.full}/{result.containment.total} GT spans fully inside a chunk)",
         f"- latency: median {percentile(result.latencies_ms, 50):.1f} ms, "
         f"p95 {percentile(result.latencies_ms, 95):.1f} ms",
         "",

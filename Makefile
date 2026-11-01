@@ -13,6 +13,7 @@ help:
 	@echo "test      run the test suite"
 	@echo "lint      run ruff"
 	@echo "eval      evaluate a config: make eval CONFIG=configs/baseline.yaml"
+	@echo "grid      run the chunking grid and write the trade-off plot"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
 	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
@@ -39,6 +40,9 @@ lint:
 eval:
 	@test -n "$(CONFIG)" || (echo "CONFIG is required, e.g. CONFIG=configs/baseline.yaml"; exit 1)
 	$(PY) -m eval.run_eval --config $(CONFIG)
+
+grid:
+	$(PY) scripts/run_grid.py --config configs/grid_chunk.yaml
 
 loop:
 	$(PY) -m loop.run_loop --config $(or $(CONFIG),configs/baseline.yaml)

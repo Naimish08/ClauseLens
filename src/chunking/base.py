@@ -1,4 +1,4 @@
-"""Chunker protocol and span-contract validation."""
+"""Chunker protocol, span-contract validation and shared span helpers."""
 
 from __future__ import annotations
 
@@ -15,6 +15,17 @@ class Chunker(Protocol):
     name: str
 
     def chunk(self, document: Document) -> list[Chunk]: ...
+
+
+def apply_overlap(spans: Sequence[tuple[int, int]], overlap: int) -> list[tuple[int, int]]:
+    """Extend each span's start backwards so neighbours share ``overlap`` chars.
+
+    Every returned span is still a contiguous interval of the original document,
+    so the span contract holds; only the starting offset moves.
+    """
+    if overlap <= 0:
+        return list(spans)
+    return [(max(0, start - overlap), end) for start, end in spans]
 
 
 def validate_chunks(document: Document, chunks: Sequence[Chunk]) -> None:

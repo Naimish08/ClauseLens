@@ -76,6 +76,7 @@ Real numbers replace the targets below as stages land. Baseline config
 | Parse + chunk + validate 29 documents | 2396 chunks from 1,211,773 chars |
 | Index build (chunk + BM25) | included in the run below |
 | Full eval run (chunk + index + 140 queries) | **0.74 s** wall clock |
+| Full chunking grid (24 variants × 140 queries) | **22 s** wall clock |
 | Per-query latency (BM25) | median **3.5 ms**, p95 **4.6 ms** |
 | Test suite | 98 tests, 0.4 s |
 

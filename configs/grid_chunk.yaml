@@ -1,0 +1,20 @@
+name: chunk-grid
+seed: 13
+split: train
+mode: paper
+sizes: [256, 512, 1024]
+overlaps: [0.0, 0.15]
+chunkers: [fixed, recursive, sentence, clause]
+ks: [1, 10, 50]
+
+data:
+  benchmark: cuad
+  mini_limit: 194
+  read_mode: raw
+
+retrieval:
+  name: bm25
+  params:
+    k1: 1.5
+    b: 0.75
+  top_k: 10

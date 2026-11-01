@@ -25,7 +25,7 @@ from typing import Literal
 import numpy as np
 
 from src.data import Query
-from src.types import RetrievedSpan, contains, sort_and_merge_spans, sort_retrieved
+from src.types import Chunk, RetrievedSpan, contains, sort_and_merge_spans, sort_retrieved
 
 MetricMode = Literal["paper", "union"]
 
@@ -290,6 +290,65 @@ def aggregate_by_split(scores: Sequence[QueryScore]) -> dict[str, Aggregate]:
     for score in scores:
         grouped.setdefault(score.split, []).append(score)
     return {split: aggregate(group) for split, group in sorted(grouped.items())}
+
+
+# --------------------------------------------------------------------------- #
+# Retrieval-free diagnostics
+# --------------------------------------------------------------------------- #
+@dataclass(frozen=True, slots=True)
+class ContainmentReport:
+    """Whether the chunk set *could* contain each ground-truth answer.
+
+    Computed without any retrieval: a low number here means no retriever can
+    succeed, because the answer straddles a chunk boundary or has been dropped.
+    It is the cheapest way to tell a chunking failure from a ranking failure.
+    """
+
+    mean: float
+    full: int
+    partial: int
+    total: int
+
+    def as_dict(self) -> dict[str, float | int]:
+        return {
+            "mean": self.mean,
+            "full": self.full,
+            "partial": self.partial,
+            "total": self.total,
+        }
+
+
+def span_containment(queries: Sequence[Query], chunks: Sequence[Chunk]) -> ContainmentReport:
+    """Fraction of ground-truth spans fully inside a single chunk."""
+    by_file: dict[str, list[tuple[int, int]]] = {}
+    for chunk in chunks:
+        by_file.setdefault(chunk.file_path, []).append(chunk.span)
+
+    full = partial = total = 0
+    for query in queries:
+        for snippet in query.snippets:
+            total += 1
+            best_overlap = 0
+            fully_contained = False
+            for chunk_start, chunk_end in by_file.get(snippet.file_path, ()):
+                best_overlap = max(
+                    best_overlap, _intersection((chunk_start, chunk_end), snippet.span)
+                )
+                if chunk_start <= snippet.start and snippet.end <= chunk_end:
+                    fully_contained = True
+                    break
+            if fully_contained:
+                full += 1
+                partial += 1
+            elif best_overlap > 0:
+                partial += 1
+
+    return ContainmentReport(
+        mean=full / total if total else 0.0,
+        full=full,
+        partial=partial,
+        total=total,
+    )
 
 
 def metric_vector(scores: Sequence[QueryScore], metric: str) -> list[float]:

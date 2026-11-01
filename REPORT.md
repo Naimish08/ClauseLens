@@ -91,15 +91,63 @@ Query-prefix ablation (`docs/05-retrieval.md`), train:
 Stripping the prefix makes retrieval worse, confirming it carries routing
 information rather than noise.
 
+The grid in the next section shows that this baseline's 512-character chunks are
+not the best size: 1024 characters nearly triples recall@10. That gap is the
+improvement loop's first candidate change, not a retroactive edit to the baseline.
+
 ---
 
-## 4. Iteration history
+## 4. Chunking comparison (train)
+
+24 configurations: 4 chunkers × sizes {256, 512, 1024} characters × overlap
+{0%, 15%}, BM25 fixed, `k=10`, 140 train queries, 22 seconds of compute.
+Figure: [`docs/figures/chunk_grid.png`](docs/figures/chunk_grid.png); full table
+via `make grid` → `artifacts/grids/chunk_grid.csv`.
+
+| chunker | size | overlap | chunks | mean len | containment | recall@10 | precision@10 | span_hit@10 |
+|---|---|---|---|---|---|---|---|---|
+| fixed | 256 | 0% | 4810 | 252 | 0.130 | 0.052 | 0.008 | 0.129 |
+| fixed | 512 | 0% | 2396 | 506 | 0.401 | 0.101 | 0.011 | 0.221 |
+| fixed | 1024 | 0% | 1203 | 1007 | 0.656 | 0.319 | 0.017 | 0.407 |
+| recursive | 1024 | 15% | 1462 | 829 | 0.927 | 0.306 | 0.015 | 0.364 |
+| sentence | 1024 | 15% | 1442 | 840 | 0.932 | **0.343** | 0.016 | 0.364 |
+| clause | 1024 | 15% | 1759 | 689 | 0.927 | 0.256 | 0.015 | 0.300 |
+
+**Span containment** is the fraction of ground-truth answers that lie fully inside
+a single chunk. It is computed without any retrieval, and it is the ceiling that
+recall cannot exceed.
+
+1. **Size dominates every chunker comparison.** At 256 characters containment is
+   0.13–0.35 and recall@10 cannot pass ~0.05; at 1024 characters containment is
+   0.66–0.93 and recall reaches 0.18–0.34. Comparing chunkers at different sizes
+   would mostly be measuring size.
+2. **Sentence-1024 with 15% overlap is the best configuration** (recall@10 0.343),
+   narrowly ahead of fixed-1024 (0.319) and recursive (0.306).
+3. **Clause-aware chunking does not dominate.** It reaches 0.256 at 1024, below
+   fixed and sentence at the same size. Contract headings are a poor proxy for
+   where answers live, and dot-leader tables of contents create spurious
+   boundaries. The hypothesis was reasonable; the data does not support it.
+4. **Overlap is not free.** It raises recall at 1024 for recursive, sentence and
+   clause, but *lowers* fixed-512 from 0.101 to 0.074: extra windows rescue
+   straddling answers at large sizes and add near-duplicate competitors at small
+   ones. Paper-mode scoring also double-counts shared characters (ADR-005).
+5. **Precision sits at 0.007–0.017 for every chunker.** Chunk size sets
+   precision; the chunker barely moves it. With a 317-character median answer,
+   returning a 1,000-character chunk caps precision near 0.3 and returning ten of
+   them caps it near 0.03 — the observed numbers.
+
+The best recall (0.343) is still far below its containment ceiling (0.932), which
+confirms that after size, **ranking is the bottleneck**, not chunking.
+
+---
+
+## 5. Iteration history
 
 TODO. Generated from `logs/experiments.jsonl`, not transcribed.
 
 ---
 
-## 5. Error analysis
+## 6. Error analysis
 
 TODO (at least 10 failures, grouped by cause, spanning ≥4 causes). The baseline
 already provides candidates:
@@ -114,7 +162,7 @@ one-sentence diagnosis.
 
 ---
 
-## 6. Limitations
+## 7. Limitations
 
 See [`docs/12-risks-and-limitations.md`](docs/12-risks-and-limitations.md) for the
 full list. The ones that most affect how these numbers should be read:
@@ -128,7 +176,7 @@ full list. The ones that most affect how these numbers should be read:
 
 ---
 
-## 7. AI tool usage
+## 8. AI tool usage
 
 TODO. State which components were AI-assisted and how they were verified. Design
 decisions and rejected alternatives are recorded in `docs/09-decisions.md`.

@@ -33,7 +33,10 @@ is the error-analysis centrepiece.
 | 3 | 14 | ROFR asked of an agency agreement that lacks it (two other contracts have one) |
 | 4 | 10 | "Can Wildform terminate … for convenience?" where clause 9.2 allows only for-cause |
 
-Split by the same `assign_split`: **34 train / 12 test**.
+Split by the same `assign_split`: **34 train / 12 test**. Per type the test
+support is uneven (type 1: 1, type 2: 5, type 3: 4, type 4: 2), so test-split
+abstention is reported per type with `n` and no significance claims, and the
+headline abstention comparison uses train.
 
 Verification: every `absent_patterns` regex is checked against the claimed scope
 (the whole corpus for types 1–2, the specific document for types 3–4) by
