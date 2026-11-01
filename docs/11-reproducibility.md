@@ -78,6 +78,11 @@ Real numbers replace the targets below as stages land. Baseline config
 | Full eval run (chunk + index + 140 queries) | **0.74 s** wall clock |
 | Full chunking grid (24 variants × 140 queries) | **22 s** wall clock |
 | Abstention comparison (4 policies, 174 queries, 5 folds) | **1.9 s** wall clock |
+| Dense index (gte-base, 1442 chunks, fixed-1024) | **13.4 s** |
+| Dense query latency (gte-base) | median **10.8 ms**, p95 17.7 ms |
+| Dense query latency (e5-large) | median 32.8 ms, p95 196 ms |
+| Cross-encoder rerank (50 candidates) | median **1,073 ms** |
+| Retrieval grid (7 configurations) | **~11 min** wall clock |
 | Per-query latency (BM25) | median **3.5 ms**, p95 **4.6 ms** |
 | Test suite | 98 tests, 0.4 s |
 

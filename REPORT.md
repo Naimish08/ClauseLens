@@ -372,6 +372,7 @@ Regenerated on the shipped config with `make errors CONFIG=configs/final.yaml`.
 
 Twelve concrete failures, three per cause (full report with excerpts in
 `artifacts/error_analysis.md`).
+
 #### wrong_section
 
 - *Consider the Cooperation Agreement between HPIL ENERGYTECH Inc. and GINARES GROUP AG for Renewable Energy Projects; What…*
