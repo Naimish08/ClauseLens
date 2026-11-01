@@ -31,11 +31,25 @@ corpus file. Provides:
 - `load_benchmark()` → `list[Query]`
 - `select_mini()` → the reference 194-query subset
 - `assign_split()` → `"train"` / `"test"`, hash-fixed
+- `cv_folds()` / `fold_of()` → hash-fixed folds within train
 - `load_corpus()` → `dict[file_path, Document]` in a chosen decoding mode
 - `verify_offsets()` → `VerificationReport`
 
 **Why one module:** every downstream number depends on spans being interpreted
 against identical text. Duplicating file reads is how offset bugs are born.
+
+### 1b. Shared types — `src/types.py` ✅
+
+`Chunk` and `RetrievedSpan` plus span utilities (`sort_and_merge_spans`,
+`sort_retrieved`, `contains`). One definition so chunkers, retrievers, metrics and
+the pipeline cannot disagree about shape or ordering.
+
+### 1c. Metrics — `src/metrics.py` ✅
+
+The single source of truth for scoring: character precision/recall in `paper` and
+`union` modes, doc-hit, span-hit, chunk-hit, MRR, macro-aggregation, per-category
+grouping, abstention summaries, and paired bootstrap. Nothing else computes a
+score.
 
 ### 2. Chunking — `src/chunking/` 📋
 

@@ -224,3 +224,46 @@ def test_benchmark_json_snippet_shape() -> None:
     raw = json.loads((BENCHMARKS_DIR / "cuad.json").read_text(encoding="utf-8"))
     first = raw["tests"][0]["snippets"][0]
     assert set(first) >= {"file_path", "span", "answer"}
+
+
+# --------------------------------------------------------------------------- #
+# Cross-validation folds
+# --------------------------------------------------------------------------- #
+def test_fold_of_is_stable_and_in_range() -> None:
+    from src.data import fold_of
+
+    for query in ["a", "What is the governing law?", "x" * 100]:
+        assert fold_of(query) == fold_of(query)
+        assert 0 <= fold_of(query, 5) < 5
+
+
+def test_fold_of_rejects_single_fold() -> None:
+    from src.data import fold_of
+
+    with pytest.raises(ValueError, match="at least 2"):
+        fold_of("q", n_folds=1)
+
+
+def test_fold_prefix_does_not_collide_with_split_bucket() -> None:
+    """Fold assignment must not be a rehash of the test bucket."""
+    import hashlib
+
+
+    query = "What is the expiration date of this contract?"
+    test_bucket = int(hashlib.sha256(query.strip().encode()).hexdigest(), 16) % 10
+    fold_bucket = int(
+        hashlib.sha256(f"fold:{query.strip()}".encode()).hexdigest(), 16
+    ) % 10
+    assert test_bucket != fold_bucket
+
+
+@requires_data
+def test_cv_folds_partition_train() -> None:
+    from src.data import by_split, cv_folds
+
+    train = by_split(select_mini(load_benchmark("cuad")), "train")
+    folds = cv_folds(train, n_folds=5)
+    assert set(folds) == {0, 1, 2, 3, 4}
+    assert all(folds.values()), "every fold should be non-empty on 140 queries"
+    assert sum(len(v) for v in folds.values()) == len(train)
+    assert len({q.text for v in folds.values() for q in v}) == len(train)

@@ -1,6 +1,6 @@
 # 03 — Metrics
 
-Status: 📋 designed, implementation in `src/metrics.py` pending.
+Status: ✅ implemented (`src/metrics.py`, fixtures in `tests/test_metrics.py`).
 Reference implementation: `legalbenchrag/run_benchmark.py` (`QAResult`).
 
 ## The primary pair: character precision and recall
@@ -68,6 +68,14 @@ Decision (ADR-005): implement the reference semantics as `mode="paper"` (default
 for comparability with published numbers) **and** provide `mode="union"` as an
 option. Every results table states which was used. The chunking grid reports both
 when `overlap > 0`, so the discrepancy is visible instead of hidden.
+
+⚠️ **Measured consequence:** with overlapping retrieved chunks, `paper` recall can
+exceed 1.0 — it is a ratio of summed per-snippet overlaps to a 100-character
+ground truth, and duplicated characters are counted twice. The fixture
+`test_overlapping_retrieved_spans_change_recall_between_modes` pins the exact
+values (`paper` recall 1.2, `union` recall 1.0). A recall above 1.0 in a table is
+therefore a signal that the table used `paper` mode with overlapping chunks, not a
+bug in the harness. This is precisely why the `union` variant exists.
 
 ## Secondary metrics
 

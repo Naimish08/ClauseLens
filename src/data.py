@@ -235,6 +235,36 @@ def by_split(queries: Iterable[Query], split: Split) -> list[Query]:
 
 
 # --------------------------------------------------------------------------- #
+# Cross-validation folds (within train)
+# --------------------------------------------------------------------------- #
+DEFAULT_FOLDS = 5
+_FOLD_PREFIX = "fold:"
+
+
+def fold_of(query_text: str, n_folds: int = DEFAULT_FOLDS) -> int:
+    """Stable fold index for a query, derived from its text.
+
+    Prefixed before hashing so fold assignment is independent of the train/test
+    bucket in :func:`assign_split` — otherwise folds and split would correlate and
+    cross-validation would quietly repeat the same partition.
+    """
+    if n_folds < 2:
+        raise ValueError("n_folds must be at least 2")
+    digest = hashlib.sha256(f"{_FOLD_PREFIX}{query_text.strip()}".encode()).hexdigest()
+    return int(digest, 16) % n_folds
+
+
+def cv_folds(
+    queries: Iterable[Query], n_folds: int = DEFAULT_FOLDS
+) -> dict[int, list[Query]]:
+    """Partition queries into ``n_folds`` hash-derived folds."""
+    folds: dict[int, list[Query]] = {index: [] for index in range(n_folds)}
+    for query in queries:
+        folds[fold_of(query.text, n_folds)].append(query)
+    return folds
+
+
+# --------------------------------------------------------------------------- #
 # Verification
 # --------------------------------------------------------------------------- #
 @dataclass(frozen=True, slots=True)
