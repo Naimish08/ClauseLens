@@ -16,6 +16,7 @@ help:
 	@echo "grid      run the chunking grid and write the trade-off plot"
 	@echo "abstention compare abstention policies and write the trade-off curve"
 	@echo "retrieval-grid  compare retrieval methods with chunking held fixed"
+	@echo "errors    dump concrete failures grouped by cause"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
 	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
@@ -51,6 +52,9 @@ abstention:
 
 retrieval-grid:
 	$(PY) scripts/run_retrieval_grid.py --config configs/grid_retrieval.yaml
+
+errors:
+	$(PY) scripts/error_analysis.py --config $(or $(CONFIG),configs/final.yaml) --per-cause 2
 
 loop:
 	$(PY) -m loop.run_loop --config $(or $(CONFIG),configs/baseline.yaml)

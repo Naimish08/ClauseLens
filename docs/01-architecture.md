@@ -141,6 +141,7 @@ data:
   benchmark: cuad
   mini_limit: 194
   read_mode: raw          # raw | text
+  split: train            # train | test | all
 
 chunking:
   name: fixed
@@ -152,7 +153,7 @@ retrieval:
   top_k: 10
 
 rerank:
-  name: none
+  name: none        # unused: cross-encoder reranking is retrieval.name=rerank (ADR-016)
   params: {}
 
 abstain:

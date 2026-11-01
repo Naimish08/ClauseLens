@@ -23,6 +23,9 @@ make test       # pytest
 make lint       # ruff
 make eval CONFIG=configs/baseline.yaml
 make loop CONFIG=configs/baseline.yaml
+make grid               # chunking comparison + precision/size plot
+make retrieval-grid     # retrieval comparison, chunking held fixed
+make abstention         # abstention trade-off curves
 make app        # streamlit
 make cli ARGS="--config configs/final.yaml --query '...'"
 ```

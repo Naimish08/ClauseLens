@@ -91,9 +91,10 @@ this file are the evidence that the loop did real work.
   queries, not to `n_queries`.
 - **`diff`** is the authoritative record of what changed. Reading the diff must be
   enough to reconstruct the candidate config without opening the YAML.
-- **`git_commit`** is the commit that made the change permanent. Rejected
-  iterations have `null`, because rejecting means nothing is committed but the log
-  line.
+- **`git_commit`** records the `HEAD` the run was based on. Accepted candidates
+  are written to `configs/generated/` and committed by the operator afterwards, so
+  the log line and the config file are both traceable even though the loop itself
+  does not create commits.
 - **`run_id`** links to `artifacts/runs/{run_id}/` for full per-query detail.
 
 ## Derived artefacts

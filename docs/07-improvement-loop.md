@@ -65,9 +65,9 @@ and auditable — no LLM (cut, ADR-008).
 | Dominant failure | Candidate changes (in order) |
 |---|---|
 | `wrong_document` | enable `semantic` router; strip doc hint from query; increase `k`; check chunk coverage of the doc |
-| `wrong_section` | increase `k`; try hybrid RRF; try a reranker; try a different embedder |
-| `partial_span` | reduce chunk size; add parent expansion; reduce overlap |
-| `extra_context` | reduce `k`; reduce chunk size; enable reranker to sharpen the top of the list |
+| `wrong_section` | increase chunk size; recursive; sentence; clause; add overlap; hybrid RRF; rerank |
+| `partial_span` | increase chunk size; clause; recursive; add overlap |
+| `extra_context` | reduce chunk size; remove overlap |
 | `false_abstention` | raise the abstention threshold; switch policy |
 | `missed_abstention` | lower the threshold; add a feature to the classifier |
 
@@ -85,8 +85,13 @@ Three gates, all must pass:
 2. **Statistical significance:** paired bootstrap over train queries
    (`B = 10,000`, resampling queries, paired by query) gives a 95% interval on the
    delta that excludes 0.
-3. **Guardrails:** precision@10 must not drop by more than 0.02, false abstention
-   must not rise by more than 0.02, and latency must stay within 1.5× baseline.
+3. **Consistency:** the candidate must win on at least 4 of 5 folds. A pooled
+   bootstrap can hide a gain concentrated in one fold.
+4. **Guardrails** (ADR-017): precision@10 may not fall by more than 30% *relative*
+   to its current value; false abstention may not rise by more than 0.02; latency
+   p95 must stay within 1.5× the current value; and mean retrieved characters per
+   query may not exceed 2.5× the **baseline's** mean, so recall cannot be bought by
+   returning steadily more text.
 
 If all pass → accept: the candidate becomes the new current config. Otherwise →
 reject, with the failing gate recorded.

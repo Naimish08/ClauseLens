@@ -337,3 +337,39 @@ composition rather than as a pipeline slot.
 **Alternatives rejected.** Putting `text` on `RetrievedSpan` (memory and copies on
 every query); a pipeline stage with a separate text index (duplicate state, two
 things to keep in sync).
+
+---
+
+## ADR-017 — Guardrails are relative, and the loop has a text budget
+
+*Status: accepted · 2026-11-01*
+
+**Context.** The first full loop run accepted a chunk-size doubling from 1024 to
+2048 characters: recall@10 rose from 0.315 to 0.511, mean retrieved text per query
+rose from 9,809 to 19,568 characters, and the *absolute* precision guardrail
+(no drop greater than 0.02) passed trivially because precision was 0.011 to begin
+with. Left alone, the loop would learn to win recall by returning progressively
+more of the document — the metric is telling the truth, but the optimisation is
+not useful.
+
+**Decision.** Three changes to the acceptance gate:
+
+1. The precision guardrail is **relative**: precision may fall by at most 30% of
+   its current value, not by an absolute amount.
+2. A **text budget**: mean retrieved characters per answerable query may not exceed
+   2.5× the *baseline's* mean. Measured against the baseline, not the previous
+   iteration, so growth cannot compound.
+3. Chunk-size and overlap changes are decoupled: ``size_up`` no longer silently
+   turns on 15% overlap. One iteration changes one thing, so the effect is
+   attributable.
+
+**Consequences.** The loop now rejects the 1024→2048 step and settles at
+fixed-1024, recall@10 0.315, precision 0.017, ~9.8k characters returned per query.
+The rejected iteration stays in the log with the guardrail reason, which is itself
+evidence that the gate has teeth. Cost: two more constants (0.30, 2.5) that must be
+justified in the report rather than hidden.
+
+**Alternatives rejected.** An absolute precision tolerance (meaningless near zero);
+capping `k` instead of characters (a chunk-size increase defeats it); no cap and
+report the trade-off (honest, but then the loop's "best" config returns whole
+documents).
