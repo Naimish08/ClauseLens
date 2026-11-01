@@ -17,6 +17,7 @@ help:
 	@echo "abstention compare abstention policies and write the trade-off curve"
 	@echo "retrieval-grid  compare retrieval methods with chunking held fixed"
 	@echo "errors    dump concrete failures grouped by cause"
+	@echo "compare   paired bootstrap between two configs: make compare A=... B=..."
 	@echo "log-report  render the iteration table from logs/experiments.jsonl"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
@@ -56,6 +57,9 @@ retrieval-grid:
 
 errors:
 	$(PY) scripts/error_analysis.py --config $(or $(CONFIG),configs/final.yaml) --per-cause 2
+
+compare:
+	$(PY) scripts/compare_configs.py --a $(or $(A),configs/baseline.yaml) --b $(or $(B),configs/final.yaml)
 
 log-report:
 	$(PY) scripts/log_report.py

@@ -115,9 +115,13 @@ def git_sha() -> str:
         return "nogit"
 
 
-def write_config(config: PipelineConfig, path: Path) -> None:
+def write_config(config: PipelineConfig, path: Path, *, name: str | None = None) -> None:
+    """Persist a config, optionally renaming it so runs are distinguishable."""
+    payload = config.as_dict()
+    if name is not None:
+        payload["name"] = name
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(yaml.safe_dump(config.as_dict(), sort_keys=False), encoding="utf-8")
+    path.write_text(yaml.safe_dump(payload, sort_keys=False), encoding="utf-8")
 
 
 def log_record(
@@ -266,10 +270,11 @@ def main(argv: list[str] | None = None) -> int:
         accepted = gates.accepted
         config_path: str | None = None
         if accepted:
+            accepted_name = f"iter{iteration:02d}-{proposal.rule}"
             config_path = str(args.config_dir / f"iter_{iteration:02d}.yaml")
-            write_config(proposal.config, Path(config_path))
+            write_config(proposal.config, Path(config_path), name=accepted_name)
             current = candidate
-            config = proposal.config
+            config = dataclasses.replace(proposal.config, name=accepted_name)
             accepted_count += 1
             tried_signatures.add(behaviour_signature(proposal.config))
         else:
