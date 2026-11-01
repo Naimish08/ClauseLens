@@ -1,0 +1,47 @@
+name: iter07-retriever_hybrid
+seed: 13
+data:
+  benchmark: cuad
+  mini_limit: 194
+  read_mode: raw
+  split: train
+chunking:
+  name: fixed
+  params:
+    size: 1024
+    overlap: 0
+    snap: true
+    snap_tolerance: 80
+retrieval:
+  name: hybrid
+  params:
+    members:
+    - name: bm25
+      params:
+        k1: 1.5
+        b: 0.75
+    - name: dense
+      params:
+        model: bge-base-en-v1.5
+    weights:
+    - 1.0
+    - 1.0
+    k_rrf: 60
+    depth: 100
+  top_k: 10
+rerank:
+  name: none
+  params: {}
+abstain:
+  name: none
+  params: {}
+query:
+  strip_doc_hint: false
+metrics:
+  mode: paper
+  ks:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16

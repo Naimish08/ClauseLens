@@ -50,6 +50,30 @@ Offset integrity was verified before any modelling: every stored answer text equ
 its character span, in both text and raw read modes, with zero mismatches
 (`docs/02-data.md`).
 
+**Metric definitions.** Character precision is the total overlapping characters
+divided by the total characters returned; character recall is the overlap divided
+by the total ground-truth characters. Both are computed per query and
+macro-averaged, so one long answer cannot outvote a short one. The implementation
+follows the reference code exactly (`paper` mode), which sums per-snippet overlaps
+rather than taking their union; the union variant exists because the build plan and
+the paper disagree when retrieved chunks overlap (ADR-005), and every table states
+which was used.
+
+**Split discipline.** The train/test boundary is a SHA-256 of the query text and is
+never re-derived. All development — chunking, retrieval, abstention, the loop — used
+train only. Test evaluation requires an explicit flag, appends to
+`logs/test_runs.log`, and the number of runs is stated below.
+
+**Uncertainty.** Every comparison is paired by query and reported with a 95%
+percentile interval from 10,000 bootstrap resamples. A difference is called
+significant only when the interval excludes zero. With 140 train queries, one query
+flipping moves recall by about 0.007, which is the practical noise floor.
+
+**Reproduction.** Each table is produced by a committed config and a `make` target:
+`make eval`, `make grid`, `make retrieval-grid`, `make abstention`, `make loop`,
+`make compare`. Run artefacts record the config hash, per-query metrics and
+aggregates.
+
 ---
 
 ## 3. Baseline (train)
@@ -191,14 +215,66 @@ coefficients.
 
 ## 6. Iteration history
 
-TODO. Generated from `logs/experiments.jsonl`, not transcribed.
+Generated from `logs/experiments.jsonl` by `make log-report` — never transcribed.
+Eight iterations beyond the baseline, **2 accepted and 6 rejected**.
+
+| # | change | failure addressed | recall@10 | Δ | accepted | why |
+|---|---|---|---|---|---|---|
+| 0 | baseline | n/a | 0.101 | — | yes | baseline |
+| 1 | size: 512 → 1024 | wrong_section | 0.319 | +0.219 | yes | accepted |
+| 2 | size: 1024 → 2048 | wrong_section | 0.493 | +0.174 | no | rejected: mean retrieved 9,901 → 19,718 chars (cap 12,518) |
+| 3 | chunker: fixed → recursive | wrong_section | 0.255 | −0.064 | no | rejected: delta < 0.01; won 2/5 folds |
+| 4 | chunker: fixed → sentence | wrong_section | 0.301 | −0.018 | no | rejected: CI includes 0; won 2/5 folds |
+| 5 | chunker: fixed → clause | wrong_section | 0.180 | −0.140 | no | rejected: won 0/5 folds |
+| 6 | overlap: 0 → 153 | wrong_section | 0.316 | −0.004 | no | rejected: CI includes 0 |
+| 7 | retriever: bm25 → hybrid | wrong_section | 0.409 | +0.090 | yes | accepted |
+| 8 | retriever: hybrid → rerank | wrong_section | 0.488 | +0.079 | no | rejected: latency p95 55 → 1,726 ms |
+
+What the rejections establish:
+
+- **Iteration 2 is the text-budget guardrail doing its job.** Doubling the chunk
+  size again raised recall by 0.174, but only by returning 19,718 characters per
+  query instead of 9,901. The gate refused it (ADR-017).
+- **Iteration 8 is the latency budget doing its job.** The cross-encoder added
+  +0.079 recall at 1,726 ms p95. That is a real improvement the project declines to
+  ship, and it is stated rather than hidden (ADR-018).
+- **The chunker family lost to the simplest option at equal size** — the same
+  ordering the independent chunking grid found (Section 4), which is a useful
+  cross-check: the rule table and the grid agree.
+- **Only two changes survived**: a larger chunk and a hybrid retriever. That is a
+  modest, defensible result rather than a long chain of tweaks.
 
 ---
 
-## 7. Error analysis
+## 7. Baseline vs final (train)
 
-TODO (at least 10 failures, grouped by cause, spanning ≥4 causes). The baseline
-already provides candidates:
+Paired bootstrap, 140 queries, 10,000 resamples. `make compare A=configs/baseline.yaml B=configs/final.yaml`.
+
+| metric | baseline | final | delta | 95% CI | significant |
+|---|---|---|---|---|---|
+| recall@10 | 0.101 | **0.409** | **+0.308** | [+0.239, +0.379] | yes |
+| precision@10 | 0.011 | **0.021** | +0.010 | [+0.006, +0.014] | yes |
+| f1@10 | 0.019 | 0.039 | +0.020 | [+0.012, +0.027] | yes |
+| mrr@10 | 0.044 | 0.147 | +0.103 | [+0.075, +0.133] | yes |
+| span_hit@10 | 0.221 | 0.486 | +0.264 | [+0.193, +0.343] | yes |
+| chunk_hit@10 | 0.064 | 0.329 | +0.264 | [+0.193, +0.343] | yes |
+| doc_hit@10 | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | no |
+
+The final configuration is fixed 1,024-character chunks plus BM25+dense hybrid
+fusion (RRF, 60, equal weights). Character recall roughly quadruples, precision
+nearly doubles, and the gain is well outside the noise floor. `doc_hit` was already
+saturated, so nothing was gained — or lost — in document identification.
+
+Test-set numbers are reported in Section 0 once the single final test evaluation is
+run; all figures above are train.
+
+---
+
+## 8. Error analysis
+
+TODO: regenerate on the final config with
+`make errors CONFIG=configs/final.yaml` and curate at least 10 examples spanning
+four causes. The baseline run already shows the shape:
 
 - **Wrong section** (`doc_hit` true, `span_hit` false): the contract's title/header
   chunks outrank the clause because the query prefix repeats the party names.
@@ -210,7 +286,7 @@ one-sentence diagnosis.
 
 ---
 
-## 8. Limitations
+## 9. Limitations
 
 See [`docs/12-risks-and-limitations.md`](docs/12-risks-and-limitations.md) for the
 full list. The ones that most affect how these numbers should be read:
@@ -233,7 +309,7 @@ full list. The ones that most affect how these numbers should be read:
 
 ---
 
-## 9. AI tool usage
+## 10. AI tool usage
 
 TODO. State which components were AI-assisted and how they were verified. Design
 decisions and rejected alternatives are recorded in `docs/09-decisions.md`.

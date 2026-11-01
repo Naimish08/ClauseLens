@@ -38,19 +38,43 @@ def load_log(path: Path) -> list[dict[str, Any]]:
 
 
 def describe_change(record: dict[str, Any]) -> str:
+    """Human-readable summary of the behaviour-bearing change.
+
+    Stage replacements (chunker or retriever) drop the previous stage's parameters,
+    which would otherwise flood the diff with ``x: 0.75 -> None`` noise.
+    """
     diff = record.get("proposal", {}).get("diff") or {}
     if not diff:
         return record.get("proposal", {}).get("proposer", "baseline")
-    parts = []
-    for key, change in list(diff.items())[:2]:
+
+    def short(key: str) -> str:
+        return (
+            key.replace("chunking.params.", "")
+            .replace("retrieval.", "")
+            .replace("query.", "")
+        )
+
+    def change_text(key: str) -> str:
+        change = diff[key]
         before, after = change.get("from"), change.get("to")
-        if isinstance(after, (dict, list)):
-            after = "{…}"
         if isinstance(before, (dict, list)):
             before = "{…}"
-        short = key.replace("chunking.params.", "").replace("retrieval.", "")
-        parts.append(f"{short}: {before} → {after}")
-    return "; ".join(parts)
+        if isinstance(after, (dict, list)):
+            after = "{…}"
+        return f"{short(key)}: {before} → {after}"
+
+    if "chunking.name" in diff:
+        parts = [f"chunker: {diff['chunking.name']['from']} → {diff['chunking.name']['to']}"]
+        for key in ("chunking.params.size", "chunking.params.max_size"):
+            change = diff.get(key)
+            if change and change.get("to") is not None:
+                parts.append(f"{short(key)}: {change['to']}")
+        return "; ".join(parts)
+
+    if "retrieval.name" in diff:
+        return f"retriever: {diff['retrieval.name']['from']} → {diff['retrieval.name']['to']}"
+
+    return change_text(next(iter(diff)))
 
 
 def render(records: list[dict[str, Any]]) -> str:

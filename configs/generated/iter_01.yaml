@@ -1,4 +1,4 @@
-name: baseline-fixed512-bm25
+name: iter01-size_up
 seed: 13
 data:
   benchmark: cuad
