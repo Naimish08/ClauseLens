@@ -141,13 +141,61 @@ confirms that after size, **ranking is the bottleneck**, not chunking.
 
 ---
 
-## 5. Iteration history
+## 5. Abstention (train)
+
+140 answerable train queries against 34 train negatives (the frozen set's train
+split), BM25 over fixed-512 chunks. Totals: 46 negatives, split 34 train / 12
+test by the same hash as the benchmark.
+Figure: [`docs/figures/abstention_curves.png`](docs/figures/abstention_curves.png).
+
+Operating points are **nested**: the threshold is chosen on four folds and applied
+to the held-out fifth, so the reported numbers do not benefit from tuning on the
+same queries. The selection rule was fixed in advance — lowest false abstention
+among points with correct abstention ≥ 0.80, otherwise highest F1.
+
+| policy | false abst. | 95% CI | correct abst. | 95% CI | abst. F1 |
+|---|---|---|---|---|---|
+| threshold | 0.079 | [0.036, 0.121] | 0.794 | [0.647, 0.912] | 0.853 |
+| margin | 0.479 | [0.393, 0.564] | 0.794 | [0.647, 0.912] | 0.630 |
+| category | 0.093 | [0.050, 0.143] | **0.853** | [0.735, 0.971] | **0.879** |
+| classifier | **0.050** | [0.014, 0.086] | 0.794 | [0.647, 0.912] | 0.865 |
+
+1. **The strawman survives.** A single global threshold on the BM25 top score
+   reaches F1 0.853. The build plan expected fixed thresholds to do badly; on this
+   data they do not, because unanswerable queries have systematically weaker
+   lexical matches.
+2. **Margin is the clear loser** (false abstention 0.479): in long contracts the
+   top two chunks are usually close even when the answer is present.
+3. **Category normalisation is nominally best** (F1 0.879) but its interval
+   overlaps the global threshold's. "At least as good", not "better".
+4. **The classifier trades recall for precision** (lowest false abstention 0.050,
+   slightly lower correct abstention). No significant advantage.
+5. **Type 3 hard negatives are where policies differ** — 0.50–0.70 correct versus
+   1.00 for types 1, 2 and 4. With 10 type-3 train negatives that gap is not
+   estimable.
+
+With 34 negatives the intervals are wide enough that no ranking is defensible.
+The report claims a working operating point, not a winning method.
+
+### A confound worth reporting
+
+Including `query_len` made the classifier look excellent — false abstention 0.000,
+correct abstention 0.941, precision 1.000. Its largest coefficient was `query_len`
+(−3.65), because the authored negatives are 51–151 characters against benchmark
+queries of 134–243. The model had learned authorship, not answerability. The
+feature was removed and a regression test now prevents reintroducing it. This is
+the main risk of an authored negative set, and it was caught only by inspecting
+coefficients.
+
+---
+
+## 6. Iteration history
 
 TODO. Generated from `logs/experiments.jsonl`, not transcribed.
 
 ---
 
-## 6. Error analysis
+## 7. Error analysis
 
 TODO (at least 10 failures, grouped by cause, spanning ≥4 causes). The baseline
 already provides candidates:
@@ -162,7 +210,7 @@ one-sentence diagnosis.
 
 ---
 
-## 7. Limitations
+## 8. Limitations
 
 See [`docs/12-risks-and-limitations.md`](docs/12-risks-and-limitations.md) for the
 full list. The ones that most affect how these numbers should be read:
@@ -176,7 +224,7 @@ full list. The ones that most affect how these numbers should be read:
 
 ---
 
-## 8. AI tool usage
+## 9. AI tool usage
 
 TODO. State which components were AI-assisted and how they were verified. Design
 decisions and rejected alternatives are recorded in `docs/09-decisions.md`.

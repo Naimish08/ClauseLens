@@ -14,6 +14,7 @@ help:
 	@echo "lint      run ruff"
 	@echo "eval      evaluate a config: make eval CONFIG=configs/baseline.yaml"
 	@echo "grid      run the chunking grid and write the trade-off plot"
+	@echo "abstention compare abstention policies and write the trade-off curve"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
 	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
@@ -43,6 +44,9 @@ eval:
 
 grid:
 	$(PY) scripts/run_grid.py --config configs/grid_chunk.yaml
+
+abstention:
+	$(PY) -m eval.run_abstention --config $(or $(CONFIG),configs/baseline.yaml)
 
 loop:
 	$(PY) -m loop.run_loop --config $(or $(CONFIG),configs/baseline.yaml)

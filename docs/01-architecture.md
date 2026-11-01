@@ -95,10 +95,11 @@ class Reranker(Protocol):
 Rerankers consume top-`N` candidates (20–50) and return top-`k`. They never see
 ground truth.
 
-### 5. Abstention — `src/abstain.py` 🚧
+### 5. Abstention — `src/abstain.py` ✅
 
-`none` and `threshold` are implemented; margin, per-type and classifier are
-pending (`docs/06-abstention.md`).
+`none`, `threshold`, `margin` and `category` are implemented and compared on a
+trade-off curve; the logistic classifier is fitted offline in
+`eval/run_abstention.py` (`docs/06-abstention.md`).
 
 ```python
 class Abstainer(Protocol):

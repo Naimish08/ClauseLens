@@ -11,7 +11,7 @@ import time
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 
-from src.abstain import Abstainer, build_abstainer
+from src.abstain import Abstainer, QueryFeatures, build_abstainer
 from src.chunking import Chunker, build_chunker, validate_chunks
 from src.config import PipelineConfig
 from src.data import Document, derive_category
@@ -163,7 +163,9 @@ class Pipeline:
             rerank_ms = (time.perf_counter() - started) * 1000.0
 
         started = time.perf_counter()
-        decision = self.abstainer.decide(candidates)
+        decision = self.abstainer.decide(
+            QueryFeatures.from_retrieval(prepared, candidates)
+        )
         abstain_ms = (time.perf_counter() - started) * 1000.0
 
         spans = () if decision.abstain else tuple(candidates[:depth])

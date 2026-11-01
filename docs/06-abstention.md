@@ -120,7 +120,7 @@ Features (all computable from retrieval output alone — no ground truth):
 | `bm25_dense_agreement` | Jaccard of the two top-10 document/span sets |
 | `n_above_floor` | how many results clear a low absolute floor |
 | `retrieved_len_total` | how much text would be returned |
-| `query_len`, `category` (one-hot for frequent categories) | query-type signal |
+| ~~`query_len`~~ | **excluded**: separated the classes by construction (see below) |
 
 - Trained on train negatives (unanswerable, types 1–4) + train positives
   (answerable, label 0), class-weighted because negatives are the minority.
@@ -141,6 +141,64 @@ Plot the curve; summarise with AUC **only** as a tiebreaker. Pick the operating
 point on train by an explicit rule (e.g. "correct-abstention ≥ 0.80 with the
 lowest false-abstention"), state the rule in advance, and apply it unchanged to
 test.
+
+
+### Measured results (2026-11-01)
+
+`python -m eval.run_abstention --config configs/baseline.yaml` — BM25 over
+fixed-512 chunks, 140 answerable train queries and 34 train negatives, about 2
+seconds. Figure: [`figures/abstention_curves.png`](figures/abstention_curves.png).
+
+The operating point rule was fixed before looking at the numbers: *the lowest
+false-abstention rate among thresholds with correct abstention ≥ 0.80; if
+unreachable, the highest abstention F1*. Fitted policies use out-of-fold
+confidences, and the operating point itself is selected **nested** — chosen on the
+other four folds and applied to the held-out fold — so the reported numbers do not
+benefit from selecting the threshold on the same queries.
+
+| policy | false abst. | 95% CI | correct abst. | 95% CI | abst. F1 |
+|---|---|---|---|---|---|
+| threshold | 0.079 | [0.036, 0.121] | 0.794 | [0.647, 0.912] | 0.853 |
+| margin | 0.479 | [0.393, 0.564] | 0.794 | [0.647, 0.912] | 0.630 |
+| category | 0.093 | [0.050, 0.143] | **0.853** | [0.735, 0.971] | **0.879** |
+| classifier | **0.050** | [0.014, 0.086] | 0.794 | [0.647, 0.912] | 0.865 |
+
+Per-type correct abstention at the selected points (threshold policy): type 1
+1.00, type 2 1.00, type 3 0.50, type 4 1.00.
+
+1. **The strawman is strong.** A single global threshold on the BM25 top score
+   reaches F1 0.853, and nothing beats it by a margin that survives the interval.
+   The build plan predicted that a fixed threshold would do badly; on this data it
+   does not, because negative queries have systematically weaker lexical matches.
+   That is a finding, not a failure of the experiment.
+2. **Margin is clearly the worst** (FAR 0.479). It abstains whenever the top two
+   results are close, which is common for answerable queries in long contracts.
+3. **Category normalisation is nominally best** (F1 0.879, CAR 0.853) but its
+   interval overlaps the threshold policy's. The honest claim is "at least as good
+   as a global threshold", not "better".
+4. **The classifier trades recall for precision.** Lowest false abstention (0.050)
+   at slightly lower correct abstention. No significant advantage.
+5. **Type 3 hard negatives are the discriminator.** Types 1, 2 and 4 are separated
+   almost perfectly by score; the queries where the topic exists but the specific
+   clause does not are where policies differ (0.50–0.70). With only 10 type-3
+   train negatives, that difference is not estimable with confidence.
+6. **All intervals are wide** (34 negatives). No ranking of these policies is
+   defensible on this sample; the report says so rather than publishing a league
+   table.
+
+### A confound the first run exposed
+
+With `query_len` in the feature vector, the classifier looked perfect: false
+abstention 0.000, correct abstention 0.941, abstention precision 1.000. Inspecting
+coefficients showed why — `query_len` had the largest weight by far (−3.65) and
+the authored negatives are 51–151 characters against benchmark queries of 134–243.
+The model had learned **who wrote the query**, not whether it was answerable.
+
+`query_len` was removed from `FEATURE_NAMES`, and
+`tests/test_abstain.py::test_query_length_is_not_a_model_feature` guards against
+reintroducing it. After removal the classifier performs like the other policies.
+This is the only defence that matters when negatives are authored rather than
+sampled: check that the features cannot separate the classes by construction.
 
 ## Interaction with answerable-query metrics
 
