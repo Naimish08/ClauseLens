@@ -1,7 +1,7 @@
 # 05 — Retrieval
 
-Status: 🚧 BM25, dense, hybrid and reranker implemented; measurement pending and
-the document router not yet built.
+Status: ✅ BM25, dense, hybrid and reranker implemented and measured
+(`make retrieval-grid`). The document router remains unbuilt.
 
 ## The document-routing lever
 
@@ -139,6 +139,34 @@ sweep — time budget).
   original chunk span, never the truncated one.
 - Latency is measured and reported, because a reranker that adds ~2 s per query
   must justify itself against the recall it buys.
+
+## Measured results (2026-11-01)
+
+Held chunking at sentence-1024-15%, 140 train queries. Full table:
+`artifacts/grids/retrieval_grid.csv`; figure:
+[`figures/retrieval_grid.png`](figures/retrieval_grid.png).
+
+| retriever | recall@10 | mrr@10 | p50 (ms) | index (s) |
+|---|---|---|---|---|
+| BM25 | 0.343 | 0.099 | 3.8 | 0.16 |
+| dense bge-base | 0.529 | 0.181 | 13.5 | 31 |
+| dense gte-base | **0.580** | 0.221 | **10.8** | 45 |
+| dense e5-large | 0.576 | **0.226** | 32.8 | 230 |
+| hybrid RRF | 0.475 | 0.147 | 28.9 | cache |
+| hybrid weighted 2:1 | 0.435 | 0.137 | 30.7 | cache |
+| hybrid + rerank | 0.550 | 0.190 | 1,073 | cache |
+
+1. Dense beats BM25 by 0.19–0.24 recall@10 at this chunking.
+2. Embedder size is not a lever: gte-base ≈ e5-large in quality at a third of the
+   latency and a fifth of the index time.
+3. Hybrid RRF underperforms its best member; fusing weak BM25 dilutes strong dense.
+4. The reranker improves localisation (span_hit) but not ranking, and costs ~100×
+   the latency of gte-base.
+5. Hybrid index times above are cache hits, not real build costs.
+
+⚠️ Consequence for the loop: its original rule order tried hybrid before dense, so
+it settled at 0.409 when dense alone reaches higher. The rule table now includes a
+dense step before hybrid (ADR-019).
 
 ## Comparison table the code must produce
 

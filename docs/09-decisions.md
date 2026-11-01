@@ -402,3 +402,35 @@ measurement.
 **Alternatives rejected.** Pure ratio (rejects all GPU work); no latency gate and
 report the trade-off (the loop would happily ship a one-second reranker); 1000 ms
 budget (would accept the reranker without a justification argument).
+
+---
+
+## ADR-019 — The loop's rule table gained a dense-retriever step, and the hybrid builder was fixed
+
+*Status: accepted · 2026-11-01*
+
+**Context.** The retrieval grid (docs/05-retrieval.md) measured dense retrieval well
+ahead of both BM25 and the BM25+dense hybrid: 0.580 recall@10 for gte-base against
+0.475 for RRF fusion and 0.343 for BM25. The loop, whose rules tried
+``retriever_hybrid`` but never a dense retriever on its own, therefore settled at
+0.409 — a local optimum that the broader comparison shows is ~0.17 below what the
+same train data supports.
+
+**Decision.** Two changes:
+
+1. ``retriever_dense`` is added to the rule table *before* ``retriever_hybrid``,
+   using gte-base (best quality at the lowest dense latency in the grid).
+2. ``_retriever_hybrid`` now fuses whichever family is missing with the current
+   retriever. Previously, applying it after a dense switch would have built a
+   hybrid of dense with itself.
+
+**Consequences.** The loop now reaches dense retrieval and the final config matches
+the best independently validated choice. The rule table was revised *after* seeing a
+train-only comparison, which is disclosed in the report: this is design informed by
+train evidence, not test leakage, and the test split remains untouched. Cost: the
+loop is no longer a rule set fixed before any measurement, and the report must say
+so rather than presenting hindsight as foresight.
+
+**Alternatives rejected.** Keep the local optimum and document it (honest, but ships
+a knowingly worse system and makes the loop look like a dead end); delete the hybrid
+rule (loses the comparison that produced the finding).

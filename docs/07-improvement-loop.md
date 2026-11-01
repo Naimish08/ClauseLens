@@ -65,7 +65,7 @@ and auditable — no LLM (cut, ADR-008).
 | Dominant failure | Candidate changes (in order) |
 |---|---|
 | `wrong_document` | enable `semantic` router; strip doc hint from query; increase `k`; check chunk coverage of the doc |
-| `wrong_section` | increase chunk size; recursive; sentence; clause; add overlap; hybrid RRF; rerank |
+| `wrong_section` | increase chunk size; recursive; sentence; clause; add overlap; dense; hybrid RRF; rerank |
 | `partial_span` | increase chunk size; clause; recursive; add overlap |
 | `extra_context` | reduce chunk size; remove overlap |
 | `false_abstention` | raise the abstention threshold; switch policy |

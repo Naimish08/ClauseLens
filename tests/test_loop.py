@@ -145,7 +145,7 @@ def test_tried_rules_are_skipped(monkeypatch: pytest.MonkeyPatch) -> None:
     assert proposal is None
 
 
-def test_hybrid_rule_fires_when_ml_is_available(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dense_rule_fires_before_hybrid(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("loop.propose.ml_available", lambda: True)
     tried = {
         "size_up",
@@ -155,8 +155,33 @@ def test_hybrid_rule_fires_when_ml_is_available(monkeypatch: pytest.MonkeyPatch)
         "overlap_on",
     }
     proposal = propose(_config(), "wrong_section", tried, set())
+    assert proposal is not None and proposal.rule == "retriever_dense"
+    assert proposal.config.retrieval.name == "dense"
+
+
+def test_hybrid_rule_after_dense_fuses_without_duplicating(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from src.config import parse_config
+
+    monkeypatch.setattr("loop.propose.ml_available", lambda: True)
+    dense = _config(
+        retrieval={"name": "dense", "params": {"model": "gte-base"}, "top_k": 10}
+    )
+    tried = {
+        "size_up",
+        "chunker_recursive",
+        "chunker_sentence",
+        "chunker_clause",
+        "overlap_on",
+        "retriever_dense",
+    }
+    proposal = propose(dense, "wrong_section", tried, set())
     assert proposal is not None and proposal.rule == "retriever_hybrid"
-    assert proposal.config.retrieval.name == "hybrid"
+    members = [member["name"] for member in proposal.config.retrieval.params["members"]]
+    assert sorted(members) == ["bm25", "dense"]
+    # And the result is still a valid config.
+    assert parse_config(proposal.config.as_dict()).retrieval.name == "hybrid"
 
 
 def test_tried_signatures_are_skipped() -> None:

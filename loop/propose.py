@@ -22,6 +22,7 @@ RULES: dict[str, tuple[str, ...]] = {
         "chunker_sentence",
         "chunker_clause",
         "overlap_on",
+        "retriever_dense",
         "retriever_hybrid",
         "rerank",
     ),
@@ -38,6 +39,7 @@ RULE_DESCRIPTIONS: dict[str, str] = {
     "chunker_recursive": "switch to recursive character splitting at the current size",
     "chunker_sentence": "switch to sentence-window chunking at the current size",
     "chunker_clause": "switch to clause-aware chunking at the current size",
+    "retriever_dense": "switch to dense retrieval (best embedder from the retrieval grid)",
     "retriever_hybrid": "fuse BM25 with a dense retriever using reciprocal rank fusion",
     "rerank": "wrap the current retriever in a cross-encoder reranker",
     "overlap_on": "add 15% chunk overlap (rescue answers that straddle a boundary)",
@@ -168,25 +170,39 @@ def _chunker_clause(config: PipelineConfig) -> PipelineConfig | None:
     )
 
 
+def _retriever_dense(config: PipelineConfig) -> PipelineConfig | None:
+    if not ml_available():
+        return None
+    if config.retrieval.name == "dense":
+        return None
+    return dataclasses.replace(
+        config,
+        retrieval=dataclasses.replace(
+            config.retrieval,
+            name="dense",
+            params={"model": "gte-base"},
+        ),
+    )
+
+
 def _retriever_hybrid(config: PipelineConfig) -> PipelineConfig | None:
     if not ml_available():
         return None
     if config.retrieval.name in {"hybrid", "rerank"}:
         return None
-    dense = {
-        "name": "dense",
-        "params": {"model": "bge-base-en-v1.5"},
-    }
+
+    bm25 = {"name": "bm25", "params": {"k1": 1.5, "b": 0.75}}
+    dense = {"name": "dense", "params": {"model": "gte-base"}}
+    # Fuse whichever family is missing with the current retriever, so the rule also
+    # works after switching to dense (otherwise it would fuse dense with itself).
+    members = [dense, bm25] if config.retrieval.name == "dense" else [bm25, dense]
     return dataclasses.replace(
         config,
         retrieval=dataclasses.replace(
             config.retrieval,
             name="hybrid",
             params={
-                "members": [
-                    {"name": config.retrieval.name, "params": dict(config.retrieval.params)},
-                    dense,
-                ],
+                "members": members,
                 "weights": [1.0, 1.0],
                 "k_rrf": 60,
                 "depth": 100,
@@ -252,6 +268,7 @@ BUILDERS = {
     "overlap_on": _overlap_on,
     "overlap_off": _overlap_off,
     "chunker_clause": _chunker_clause,
+    "retriever_dense": _retriever_dense,
     "retriever_hybrid": _retriever_hybrid,
     "rerank": _rerank,
     "strip_doc_hint": _strip_doc_hint,

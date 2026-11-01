@@ -46,11 +46,12 @@ REQUIRED_REPORT_SECTIONS = (
     "## 3. Baseline",
     "## 4. Chunking comparison",
     "## 5. Abstention",
-    "## 6. Iteration history",
-    "## 7. Baseline vs final",
-    "## 8. Error analysis",
-    "## 9. Limitations",
-    "## 10. AI tool usage",
+    "## 6. Retrieval comparison",
+    "## 7. Iteration history",
+    "## 8. Baseline vs final",
+    "## 9. Error analysis",
+    "## 10. Limitations",
+    "## 11. AI tool usage",
 )
 
 

@@ -213,7 +213,49 @@ coefficients.
 
 ---
 
-## 6. Iteration history
+## 6. Retrieval comparison (train)
+
+Chunking is held fixed at the best configuration from Section 4
+(sentence-window, 1,024 characters, 15% overlap), 140 train queries. Figure:
+[`docs/figures/retrieval_grid.png`](docs/figures/retrieval_grid.png); regenerate
+with `make retrieval-grid`.
+
+| retriever | recall@10 | precision@10 | mrr@10 | span_hit@10 | p50 (ms) | p95 (ms) |
+|---|---|---|---|---|---|---|
+| BM25 | 0.343 | 0.016 | 0.099 | 0.364 | 3.8 | 6.4 |
+| dense bge-base | 0.529 | 0.026 | 0.181 | 0.536 | 13.5 | 32.1 |
+| **dense gte-base** | **0.580** | **0.028** | **0.221** | **0.586** | **10.8** | 17.7 |
+| dense e5-large | 0.576 | 0.028 | 0.226 | 0.579 | 32.8 | 196.1 |
+| hybrid RRF (bm25+bge) | 0.475 | 0.024 | 0.147 | 0.493 | 28.9 | 42.6 |
+| hybrid weighted 2:1 (bm25) | 0.435 | 0.021 | 0.137 | 0.486 | 30.7 | 55.9 |
+| hybrid + cross-encoder | 0.550 | 0.027 | 0.190 | 0.593 | 1,073 | 1,568 |
+
+1. **Dense beats BM25 decisively** — by 0.19 to 0.24 recall@10. At this chunking
+   size, lexical matching is not competitive, which is the opposite of the usual
+   "BM25 is a strong legal baseline" expectation.
+2. **Embedder size does not matter here.** gte-base (109M) scores 0.580 and
+   e5-large (335M) scores 0.576 — a 3× parameter increase for no measurable gain,
+   at 3× the query latency and roughly 5× the index time. That is a clean negative
+   result for "bigger embeddings are better".
+3. **Hybrid fusion is *worse* than its best member.** RRF of BM25 and bge scores
+   0.475 against 0.529 for bge alone. Fusing a much weaker ranking dilutes a strong
+   one. The loop reached hybrid first only because its rule table never tried dense
+   on its own — a limitation of the rule ordering, discussed in Section 7.
+4. **Weighting BM25 higher makes it worse still** (0.435), consistent with the
+   dilution explanation.
+5. **The reranker recovers some of the loss but not the lead.** 0.550 at 1,073 ms
+   median, against 0.580 at 10.8 ms for gte-base alone. It also raises span_hit
+   (0.593), so it improves *localisation* while ranking worse overall.
+6. **Index cost is real.** BM25 indexes in 0.16 s; gte-base takes 45 s; e5-large
+   takes 230 s. Retrieval speed and index speed are different budgets.
+
+⚠️ The hybrid rows report near-zero index time because their embeddings were cache
+hits from the earlier dense runs. That number is a cache measurement, not the cost
+of building the index from scratch.
+
+---
+
+## 7. Iteration history
 
 Generated from `logs/experiments.jsonl` by `make log-report` — never transcribed.
 Eight iterations beyond the baseline, **2 accepted and 6 rejected**.
@@ -246,7 +288,7 @@ What the rejections establish:
 
 ---
 
-## 7. Baseline vs final (train)
+## 8. Baseline vs final (train)
 
 Paired bootstrap, 140 queries, 10,000 resamples. `make compare A=configs/baseline.yaml B=configs/final.yaml`.
 
@@ -270,7 +312,7 @@ run; all figures above are train.
 
 ---
 
-## 8. Error analysis
+## 9. Error analysis
 
 TODO: regenerate on the final config with
 `make errors CONFIG=configs/final.yaml` and curate at least 10 examples spanning
@@ -286,7 +328,7 @@ one-sentence diagnosis.
 
 ---
 
-## 9. Limitations
+## 10. Limitations
 
 See [`docs/12-risks-and-limitations.md`](docs/12-risks-and-limitations.md) for the
 full list. The ones that most affect how these numbers should be read:
@@ -309,7 +351,41 @@ full list. The ones that most affect how these numbers should be read:
 
 ---
 
-## 10. AI tool usage
+## 11. AI tool usage
 
-TODO. State which components were AI-assisted and how they were verified. Design
-decisions and rejected alternatives are recorded in `docs/09-decisions.md`.
+AI assistance was used to write code, tests and documentation. No AI component runs
+**inside** the system: there is no LLM in retrieval, reranking, abstention or the
+improvement loop (ADR-008). The loop's proposer is a deterministic rule table, so
+every accepted change is attributable to a named rule and a config diff.
+
+**How the output was controlled.**
+
+1. Every number in this report is produced by committed code from a committed
+   config, not written by hand. `make check` verifies that the required artefacts
+   exist and that the experiment log is contiguous.
+2. Metric behaviour is pinned by hand-computed fixtures, including the case where
+   the paper's precision/recall definition exceeds 1.0 for overlapping chunks.
+3. Data integrity is checked before any modelling: all 272 ground-truth spans match
+   their stored answer text in both read modes.
+4. Design decisions and rejected alternatives are recorded as ADRs
+   (`docs/09-decisions.md`), including the ones that changed course.
+
+**Claims that were wrong and were caught.** These are the useful part of the record:
+
+- The build plan referred to an upstream `mini()` function that does not exist; the
+  selection is inline logic with unusual reseeding, and a "cleaner" reimplementation
+  would have chosen a different 194 queries.
+- A first abstention classifier appeared near-perfect (false abstention 0.000)
+  because `query_len` separated the classes by construction — the authored
+  negatives are shorter than benchmark queries. It was learning authorship, not
+  answerability.
+- The sentence chunker produced 125,131 chunks averaging 10 characters because
+  dot-leader tables of contents were split and never re-packed.
+- The first improvement-loop run accepted a chunk size that quadrupled the text
+  returned per query; the guardrail was measuring an absolute precision drop that
+  was meaningless near zero.
+- A purely relative latency gate rejected a hybrid retriever that gained 0.090
+  recall at 42 ms, because the baseline was 2.9 ms.
+
+Each of these is a place where the first answer looked fine and a check disagreed.
+The checks are in the repository.
