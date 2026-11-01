@@ -18,6 +18,7 @@ Start with [`docs/00-overview.md`](docs/00-overview.md) and
 make setup      # uv venv --python 3.12 + core deps
 make data       # download + unpack the benchmark (~90 MB, needs network once)
 make verify     # verify ground-truth character offsets (must pass)
+make negatives  # validate the frozen unanswerable set
 make test       # pytest
 make lint       # ruff
 make eval CONFIG=configs/baseline.yaml

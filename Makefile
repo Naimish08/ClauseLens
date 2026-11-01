@@ -3,18 +3,19 @@ UV := uv
 
 .DEFAULT_GOAL := help
 
-.PHONY: help setup data verify test lint eval loop app cli clean
+.PHONY: help setup data verify negatives test lint eval loop app cli clean
 
 help:
-	@echo "setup   create .venv (Python 3.12) and install core deps"
-	@echo "data    download + unpack LegalBench-RAG into data/"
-	@echo "verify  verify ground-truth character offsets"
-	@echo "test    run the test suite"
-	@echo "lint    run ruff"
-	@echo "eval    evaluate a config: make eval CONFIG=configs/baseline.yaml"
-	@echo "loop    run the self-improvement loop"
-	@echo "app     launch the Streamlit app"
-	@echo "cli     run the CLI (ARGS='...' to pass arguments)"
+	@echo "setup     create .venv (Python 3.12) and install core deps"
+	@echo "data      download + unpack LegalBench-RAG into data/"
+	@echo "verify    verify ground-truth character offsets"
+	@echo "negatives validate the frozen unanswerable set"
+	@echo "test      run the test suite"
+	@echo "lint      run ruff"
+	@echo "eval      evaluate a config: make eval CONFIG=configs/baseline.yaml"
+	@echo "loop      run the self-improvement loop"
+	@echo "app       launch the Streamlit app"
+	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
 
 setup:
 	$(UV) venv --python 3.12
@@ -25,6 +26,9 @@ data:
 
 verify:
 	$(PY) scripts/verify_data.py
+
+negatives:
+	$(PY) scripts/validate_negatives.py
 
 test:
 	$(PY) -m pytest

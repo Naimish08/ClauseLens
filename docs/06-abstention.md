@@ -22,6 +22,41 @@ per-type breakdowns are meaningful). Four deliberately different types:
 Types 3 and 4 are where single-threshold systems fail, and the per-type breakdown
 is the error-analysis centrepiece.
 
+### Measured composition (2026-11-01, frozen)
+
+`data/unanswerable.jsonl` contains **46 entries**, committed before any tuning:
+
+| Type | Entries | Example |
+|---|---|---|
+| 1 | 12 | "Which agreement requires the licensor to place its source code in escrow…" |
+| 2 | 10 | "What is the governing law of the Northwind Logistics Master Services Agreement?" |
+| 3 | 14 | ROFR asked of an agency agreement that lacks it (two other contracts have one) |
+| 4 | 10 | "Can Wildform terminate … for convenience?" where clause 9.2 allows only for-cause |
+
+Split by the same `assign_split`: **34 train / 12 test**.
+
+Verification: every `absent_patterns` regex is checked against the claimed scope
+(the whole corpus for types 1–2, the specific document for types 3–4) by
+`make negatives`, and every type-4 entry must prove its near-miss neighbour is
+present. `scripts/mine_negatives.py` produced the candidates.
+
+⚠️ **The check earned its keep.** Three drafted entries were rejected and replaced:
+
+- "tag-along rights" as a type-1 candidate — the IGENE joint venture has an express
+  *Section 12.1 RIGHT OF FIRST REFUSAL; TAG-ALONG RIGHTS*. Replaced with a
+  jury-trial-waiver query, which matches nothing anywhere.
+- "termination for convenience" against deltathree — the contract grants a
+  termination right exercisable "at any time" after a change of control. Replaced
+  with the On2 support agreement, which allows termination only for uncured
+  material breach.
+- "insurance" against Dynamax — the contract *does* require insurance. Replaced
+  with the PennTex gas transportation agreement.
+
+A fourth near-miss exposed a regex pitfall: PennTex matched `/insur/` only because
+of the word *insurrections* in a force-majeure clause. The stored patterns use
+`insurance|insurer|insured`, not a substring match, and the burden is on the
+pattern to be precise.
+
 ### Freezing protocol
 
 1. Draft generated with BM25 near-miss mining, then **verified by a human against
