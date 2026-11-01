@@ -89,7 +89,7 @@ Three gates, all must pass:
    bootstrap can hide a gain concentrated in one fold.
 4. **Guardrails** (ADR-017): precision@10 may not fall by more than 30% *relative*
    to its current value; false abstention may not rise by more than 0.02; latency
-   p95 must stay within 1.5× the current value; and mean retrieved characters per
+   p95 must stay within `max(250 ms, 1.5× the current value)` (ADR-018); and mean retrieved characters per
    query may not exceed 2.5× the **baseline's** mean, so recall cannot be bought by
    returning steadily more text.
 

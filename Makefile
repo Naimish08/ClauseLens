@@ -17,6 +17,7 @@ help:
 	@echo "abstention compare abstention policies and write the trade-off curve"
 	@echo "retrieval-grid  compare retrieval methods with chunking held fixed"
 	@echo "errors    dump concrete failures grouped by cause"
+	@echo "log-report  render the iteration table from logs/experiments.jsonl"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
 	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
@@ -55,6 +56,9 @@ retrieval-grid:
 
 errors:
 	$(PY) scripts/error_analysis.py --config $(or $(CONFIG),configs/final.yaml) --per-cause 2
+
+log-report:
+	$(PY) scripts/log_report.py
 
 loop:
 	$(PY) -m loop.run_loop --config $(or $(CONFIG),configs/baseline.yaml)

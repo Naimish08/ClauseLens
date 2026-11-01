@@ -251,6 +251,39 @@ def test_precision_collapse_is_a_guardrail_failure() -> None:
     assert not result.guardrails
 
 
+def test_fast_gpu_component_passes_the_latency_budget() -> None:
+    current = [score(0.3) for _ in range(20)]
+    candidate = [score(0.4) for _ in range(20)]
+    folds = [index % 5 for index in range(20)]
+    result = evaluate_gates(
+        current,
+        candidate,
+        folds,
+        latency_current_p95=2.9,
+        latency_candidate_p95=42.0,
+        baseline_mean_retrieved_len=1000.0,
+    )
+    assert result.accepted
+    assert result.guardrails
+
+
+def test_slow_reranker_is_rejected_by_the_latency_budget() -> None:
+    current = [score(0.3) for _ in range(20)]
+    candidate = [score(0.4) for _ in range(20)]
+    folds = [index % 5 for index in range(20)]
+    result = evaluate_gates(
+        current,
+        candidate,
+        folds,
+        latency_current_p95=2.9,
+        latency_candidate_p95=975.0,
+        baseline_mean_retrieved_len=1000.0,
+    )
+    assert not result.accepted
+    assert not result.guardrails
+    assert "latency" in result.notes
+
+
 def test_misaligned_inputs_are_rejected() -> None:
     with pytest.raises(ValueError, match="aligned"):
         evaluate_gates([score(0.1)], [score(0.2), score(0.3)], [0, 1])

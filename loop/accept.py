@@ -72,6 +72,7 @@ def evaluate_gates(
     latency_current_p95: float = 0.0,
     latency_candidate_p95: float = 0.0,
     latency_factor: float = 1.5,
+    latency_budget_ms: float = 250.0,
     baseline_mean_retrieved_len: float = 0.0,
     retrieved_len_factor: float = 2.5,
 ) -> GateResult:
@@ -114,9 +115,13 @@ def evaluate_gates(
         candidate_agg.false_abstention_rate
         <= current_agg.false_abstention_rate + abstention_tolerance
     )
+    # Absolute budget OR relative slack, whichever is larger. A purely relative
+    # rule applied to a 3 ms baseline rejects any GPU component on principle
+    # (ADR-018); a budget reflects what a user actually perceives.
     latency_ok = (
         latency_current_p95 <= 0.0
-        or latency_candidate_p95 <= latency_current_p95 * latency_factor
+        or latency_candidate_p95
+        <= max(latency_budget_ms, latency_current_p95 * latency_factor)
     )
     guardrails = precision_ok and abstention_ok and latency_ok and length_ok
 

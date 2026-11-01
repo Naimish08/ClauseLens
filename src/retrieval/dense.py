@@ -92,7 +92,10 @@ class SentenceTransformerEncoder:
             from sentence_transformers import SentenceTransformer
 
             self._model = SentenceTransformer(self.spec.hf_name, device=self.device)
-            self.dim = int(self._model.get_sentence_embedding_dimension())
+            dimension = getattr(self._model, "get_embedding_dimension", None)
+            if dimension is None:  # older sentence-transformers
+                dimension = self._model.get_sentence_embedding_dimension
+            self.dim = int(dimension())
         return self._model
 
     def encode_passages(self, texts: Sequence[str]) -> np.ndarray:

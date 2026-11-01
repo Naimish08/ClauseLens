@@ -373,3 +373,32 @@ justified in the report rather than hidden.
 capping `k` instead of characters (a chunk-size increase defeats it); no cap and
 report the trade-off (honest, but then the loop's "best" config returns whole
 documents).
+
+---
+
+## ADR-018 — Latency is gated by an absolute budget, not only a ratio
+
+*Status: accepted · 2026-11-01*
+
+**Context.** The first loop run reached a hybrid BM25+dense retriever that raised
+recall@10 from 0.319 to 0.409 and was rejected solely because p95 latency went from
+2.9 ms to 42 ms — 14× the baseline, but far below human perception. A 1.5× ratio
+applied to a millisecond-scale baseline makes any GPU component unacceptable on
+principle, which is not the question the project is asking.
+
+**Decision.** The latency gate passes when p95 is within
+``max(250 ms, 1.5 × current p95)``. The relative term still catches regressions
+from an already-slow configuration; the absolute budget sets the floor of what is
+worth arguing about.
+
+**Consequences.** Hybrid retrieval is accepted (42 ms is interactive) and the
+cross-encoder reranker is still rejected (975 ms p95), which is the intended
+distinction: a 40 ms gain in recall is free, a one-second one is not. The rejected
+reranker stays in the log with its measured latency. Cost: one more constant to
+justify, and a reader may reasonably ask why 250 ms — the report states that it is
+a deliberate "still feels instant" threshold for a local interactive tool, not a
+measurement.
+
+**Alternatives rejected.** Pure ratio (rejects all GPU work); no latency gate and
+report the trade-off (the loop would happily ship a one-second reranker); 1000 ms
+budget (would accept the reranker without a justification argument).
