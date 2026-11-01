@@ -1,0 +1,109 @@
+# ClauseLens
+
+Clause-level retrieval over legal contracts, built as a **measured experiment
+platform** rather than a single pipeline. Every stage (chunking, retrieval,
+reranking, abstention) is swappable through YAML config, so every number in the
+report comes from the same code path and the same metric implementation.
+
+The benchmark is [LegalBench-RAG](https://arxiv.org/abs/2408.10343): the CUAD
+subset, capped at 194 queries, measured at character-level precision and recall.
+
+> Results and analysis live in [`REPORT.md`](REPORT.md). This file is only about
+> running the system.
+
+## Overview
+
+For a natural-language question the system returns a ranked list of passages,
+each with a source document and character offsets — or nothing, with an
+explanation, when no passage is relevant enough.
+
+- **Benchmark**: CUAD-mini, 194 queries over 29 contracts, split 140 train / 54 test
+- **Metric**: character-level precision/recall (paper definition), plus document
+  hit rate, span hit rate, MRR, abstention in both directions, and a per-clause-type
+  breakdown
+- **Interface**: Streamlit web app and a CLI, both thin wrappers over the same config-driven pipeline
+
+## Setup
+
+Requires Python 3.12 (3.13+ is untested; some ML wheels lag) and roughly 5 GB of
+disk for the environment plus the corpus.
+
+```bash
+make setup          # uv venv --python 3.12 + core deps
+make data           # download + unpack LegalBench-RAG into data/
+make verify         # verify ground-truth character offsets
+make test           # run the test suite
+```
+
+Optional extras, installed only when a stage needs them:
+
+```bash
+uv pip install -e ".[ml]"    # torch + sentence-transformers (dense retrieval, reranking)
+uv pip install -e ".[app]"   # streamlit
+```
+
+The download is a single Dropbox-hosted zip from the LegalBench-RAG authors; no
+account or API key is required. `data/` is never committed — `make data`
+reconstructs it, and `data/raw/MANIFEST.json` records the archive hash.
+
+## How to run
+
+```bash
+# Evaluate a pipeline config on train, then test
+make eval CONFIG=configs/baseline.yaml
+
+# Run the self-improvement loop (evaluates on train only)
+make loop CONFIG=configs/baseline.yaml
+
+# Ask a question
+make cli ARGS="--config configs/final.yaml --query 'What is the governing law?'"
+
+# Web app
+make app
+```
+
+## Architecture
+
+```
+configs/        pipeline configurations (baseline, final, grids)
+src/
+  data.py       corpus loading, mini() selection, splits, offset verification
+  metrics.py    char precision/recall, MRR, doc-hit, abstention
+  chunking/     fixed, recursive, sentence-window, clause-aware
+  retrieval/    bm25, dense, hybrid (RRF), rerank
+  abstain.py    threshold, margin, per-type, classifier
+  pipeline.py   config -> ranked passages
+loop/           diagnose, propose, accept, run_loop
+eval/           run_eval, result tables
+app/            streamlit_app.py, cli.py
+docs/           architecture and engineering notes (see docs/README.md)
+```
+
+A pipeline is a YAML file that names a chunker, a retriever, an optional
+reranker, an abstention policy, and their parameters. Nothing about the search
+path is hard-coded, because the improvement loop rewrites these files.
+
+## Assumptions
+
+- Character offsets index the corpus files decoded as UTF-8. `make verify` checks
+  every ground-truth span against its stored answer text and reports mismatches
+  instead of silently repairing them.
+- The benchmark is the CUAD subset only; other LegalBench-RAG sources (MAUD,
+  PrivacyQA, ContractNLI) are downloaded but not evaluated.
+- The train/test split is hash-fixed and is never tuned. Test is evaluated for
+  final reporting only; the number of test runs is recorded in `logs/test_runs.log`.
+- Embeddings and rerankers run locally on an RTX 4060 (8 GB); no contract text
+  leaves the machine.
+
+## AI tool usage
+
+This project is built with AI assistance. Every AI-generated change is reviewed,
+and the design decisions, their rationale, and rejected alternatives are recorded
+in [`docs/09-decisions.md`](docs/09-decisions.md). The report states which
+components were AI-assisted.
+
+## Repository notes
+
+- `AGENTS.md` describes the conventions any contributor (human or AI) must follow.
+- `docs/` holds the engineering record: architecture, data contract, metric
+  definitions, per-stage design, evaluation protocol, and the decision log.

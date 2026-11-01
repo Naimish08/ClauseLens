@@ -1,0 +1,41 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# --- Data (downloaded, not committed) ---
+# `make data` rebuilds everything under data/ except the frozen negative set.
+data/*
+!data/.gitkeep
+!data/unanswerable.jsonl
+
+# --- Generated artifacts ---
+artifacts/
+*.zip
+.reports/
+
+# --- Editor / OS ---
+.DS_Store
+.idea/
+.vscode/
+.ipynb_checkpoints/
+
+# --- Local planning notes ---
+# The build plan is a restatement of the assignment brief; keep it out of the
+# repository (see AGENTS.md). Files stay on disk. Force-add with `git add -f`.
+Contract Clause Retrieval Build Plan-1.md
+Contract Clause Retrieval Build Plan-1.pdf
+
+# --- Secrets ---
+.env
+credentials.toml
+*.key
