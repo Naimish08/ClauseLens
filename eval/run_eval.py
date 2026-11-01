@@ -64,6 +64,7 @@ class EvalResult:
     aggregates: dict[int, Aggregate]
     per_category: dict[str, Aggregate]
     containment: ContainmentReport
+    index_ms: float
     latencies_ms: list[float]
     index_stats: dict[str, int]
     run_dir: Path
@@ -82,6 +83,7 @@ class EvalResult:
             "ks": list(self.ks),
             "index_stats": self.index_stats,
             "span_containment": self.containment.as_dict(),
+            "index_ms": self.index_ms,
             "latency_ms": {
                 "median": percentile(self.latencies_ms, 50),
                 "p95": percentile(self.latencies_ms, 95),
@@ -136,8 +138,12 @@ def evaluate(
     metric_mode: MetricMode = mode or config.metrics.mode
     cutoffs = tuple(sorted(set(ks or config.metrics.ks) | {config.top_k}))
 
+    import time as _time
+
     pipeline = Pipeline.build(config)
+    _index_started = _time.perf_counter()
     index_stats = pipeline.index(documents.values())
+    index_ms = (_time.perf_counter() - _index_started) * 1000.0
     containment = span_containment(queries, pipeline.chunks)
 
     scores: dict[int, list[QueryScore]] = {k: [] for k in cutoffs}
@@ -165,6 +171,7 @@ def evaluate(
         aggregates=aggregates,
         per_category=aggregate_by_category(scores[config.top_k]),
         containment=containment,
+        index_ms=index_ms,
         latencies_ms=latencies,
         index_stats=index_stats.as_dict(),
         run_dir=ARTIFACTS_DIR / "runs" / run_id,
@@ -220,6 +227,7 @@ def render_markdown(result: EvalResult) -> str:
         f"({result.containment.full}/{result.containment.total} GT spans fully inside a chunk)",
         f"- latency: median {percentile(result.latencies_ms, 50):.1f} ms, "
         f"p95 {percentile(result.latencies_ms, 95):.1f} ms",
+        f"- index build: {result.index_ms:.0f} ms",
         "",
         *rows,
         "",

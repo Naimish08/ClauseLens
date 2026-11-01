@@ -312,3 +312,28 @@ serving behaviour to reporting choices); a separate evaluation-only search path
 (two rankings, two behaviours to trust).
 
 ---
+
+---
+
+## ADR-016 — Reranking is implemented as a retriever wrapper, not a pipeline stage
+
+*Status: accepted · 2026-11-01*
+
+**Context.** A cross-encoder needs the chunk *text*, but `RetrievedSpan` carries only
+offsets. Adding text to every span would bloat the hot path; adding a parallel
+text-carrying pipeline stage would duplicate state.
+
+**Decision.** `src/retrieval/rerank.py` implements `RerankRetriever(base, candidates,
+model)`. It indexes the chunk text once, fetches `candidates` from the base
+retriever, and reorders. Config expresses it as a retriever:
+`retrieval.name: rerank` with a nested `base` spec.
+
+**Consequences.** The pipeline interface is unchanged, so a reranker cannot change
+how spans are produced — only their order. "Reranker adds N ms" is measurable
+because the wrapper is timed like any retriever. Cost: `docs/01-architecture.md`'s
+separate reranking stage is now unused, and the two-stage story is expressed as
+composition rather than as a pipeline slot.
+
+**Alternatives rejected.** Putting `text` on `RetrievedSpan` (memory and copies on
+every query); a pipeline stage with a separate text index (duplicate state, two
+things to keep in sync).

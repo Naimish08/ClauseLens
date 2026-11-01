@@ -1,6 +1,7 @@
 # 05 — Retrieval
 
-Status: 🚧 BM25 implemented; dense, hybrid, rerank and router pending.
+Status: 🚧 BM25, dense, hybrid and reranker implemented; measurement pending and
+the document router not yet built.
 
 ## The document-routing lever
 

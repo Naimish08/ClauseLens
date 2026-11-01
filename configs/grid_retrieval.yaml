@@ -1,0 +1,93 @@
+name: retrieval-grid
+seed: 13
+split: train
+mode: paper
+ks: [1, 10, 50]
+
+data:
+  benchmark: cuad
+  mini_limit: 194
+  read_mode: raw
+
+# Chunking is held fixed at the best configuration from the chunking grid
+# (sentence-1024-15%), so this grid compares retrieval, not chunking.
+chunking:
+  name: sentence
+  params:
+    size: 1024
+    overlap: 153
+
+rerank:
+  name: none
+
+abstain:
+  name: none
+
+query:
+  strip_doc_hint: false
+
+variants:
+  - name: bm25
+    retrieval:
+      name: bm25
+      params: {k1: 1.5, b: 0.75}
+      top_k: 10
+
+  - name: dense-bge-base
+    retrieval:
+      name: dense
+      params: {model: bge-base-en-v1.5}
+      top_k: 10
+
+  - name: dense-gte-base
+    retrieval:
+      name: dense
+      params: {model: gte-base}
+      top_k: 10
+
+  - name: dense-e5-large
+    retrieval:
+      name: dense
+      params: {model: e5-large-v2}
+      top_k: 10
+
+  - name: hybrid-rrf
+    retrieval:
+      name: hybrid
+      params:
+        members:
+          - {name: bm25, params: {k1: 1.5, b: 0.75}}
+          - {name: dense, params: {model: bge-base-en-v1.5}}
+        weights: [1.0, 1.0]
+        k_rrf: 60
+        depth: 100
+      top_k: 10
+
+  - name: hybrid-weighted
+    retrieval:
+      name: hybrid
+      params:
+        members:
+          - {name: bm25, params: {k1: 1.5, b: 0.75}}
+          - {name: dense, params: {model: bge-base-en-v1.5}}
+        weights: [2.0, 1.0]
+        k_rrf: 60
+        depth: 100
+      top_k: 10
+
+  - name: hybrid-rerank
+    retrieval:
+      name: rerank
+      params:
+        base:
+          name: hybrid
+          params:
+            members:
+              - {name: bm25, params: {k1: 1.5, b: 0.75}}
+              - {name: dense, params: {model: bge-base-en-v1.5}}
+            weights: [1.0, 1.0]
+            k_rrf: 60
+            depth: 100
+        model: BAAI/bge-reranker-base
+        candidates: 50
+      top_k: 10

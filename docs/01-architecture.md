@@ -68,10 +68,10 @@ class Chunker(Protocol):
     def chunk(self, document: Document) -> list[Chunk]: ...
 ```
 
-### 3. Retrieval — `src/retrieval/` 🚧
+### 3. Retrieval — `src/retrieval/` ✅
 
-`bm25` is implemented; dense, hybrid and rerank are pending
-(`docs/05-retrieval.md`).
+`bm25`, `dense` (bge/gte/e5), `hybrid` (RRF) and `rerank` (cross-encoder
+composition) are implemented (`docs/05-retrieval.md`, ADR-016).
 
 ```python
 class Retriever(Protocol):
@@ -84,16 +84,12 @@ class Retriever(Protocol):
 `chunk_id`. Retrievers are stateless with respect to queries; all state is built
 by `index()`.
 
-### 4. Reranking — `src/retrieval/rerank.py` 📋
+### 4. Reranking — `src/retrieval/rerank.py` ✅
 
-```python
-class Reranker(Protocol):
-    name: str
-    def rerank(self, query: str, candidates: list[RetrievedSpan], k: int) -> list[RetrievedSpan]: ...
-```
-
-Rerankers consume top-`N` candidates (20–50) and return top-`k`. They never see
-ground truth.
+Implemented as a retriever wrapper (`RerankRetriever`), not a pipeline stage
+(ADR-016): it fetches `candidates` from a base retriever and reorders by
+cross-encoder score. It needs chunk text, so it stores a text lookup at index
+time; `RetrievedSpan` stays offsets-only.
 
 ### 5. Abstention — `src/abstain.py` ✅
 

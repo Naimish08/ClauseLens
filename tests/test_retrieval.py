@@ -137,4 +137,4 @@ def test_registry_builds_by_config_name() -> None:
     retriever = build_retriever("bm25", {"k1": 1.5, "b": 0.75})
     assert retriever.name == "bm25"
     with pytest.raises(ValueError, match="unknown retriever"):
-        build_retriever("dense", {})
+        build_retriever("quantum", {})
