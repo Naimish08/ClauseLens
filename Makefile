@@ -19,6 +19,7 @@ help:
 	@echo "errors    dump concrete failures grouped by cause"
 	@echo "compare   paired bootstrap between two configs: make compare A=... B=..."
 	@echo "log-report  render the iteration table from logs/experiments.jsonl"
+	@echo "check     verify required deliverables exist and are consistent"
 	@echo "loop      run the self-improvement loop"
 	@echo "app       launch the Streamlit app"
 	@echo "cli       run the CLI (ARGS='...' to pass arguments)"
@@ -63,6 +64,9 @@ compare:
 
 log-report:
 	$(PY) scripts/log_report.py
+
+check:
+	$(PY) scripts/check_deliverables.py
 
 loop:
 	$(PY) -m loop.run_loop --config $(or $(CONFIG),configs/baseline.yaml)
