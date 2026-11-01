@@ -9,7 +9,8 @@ The benchmark is [LegalBench-RAG](https://arxiv.org/abs/2408.10343): the CUAD
 subset, capped at 194 queries, measured at character-level precision and recall.
 
 > Results and analysis live in [`REPORT.md`](REPORT.md). This file is only about
-> running the system.
+> running the system. Figures are committed under `docs/figures/` and regenerated
+> by the `make` targets below.
 
 ## Overview
 

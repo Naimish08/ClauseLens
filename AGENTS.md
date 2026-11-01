@@ -157,3 +157,11 @@ of special-casing.
   disagree; report which one a table uses.
 - With 140 train queries, one query flipping moves recall by ~0.007. Do not react
   to deltas smaller than the bootstrap interval.
+- Character recall can be raised by returning more text. The loop enforces a text
+  budget of 2.5x the baseline's mean returned characters for exactly this reason
+  (ADR-017); do not remove it without replacing it.
+- The authored negatives are shorter than benchmark queries. Query length
+  separated the abstention classes by construction, so it is excluded from
+  `FEATURE_NAMES` (ADR-006); a test enforces this.
+- A purely relative latency gate rejects any GPU component when the baseline is a
+  few milliseconds. Latency uses `max(250 ms, 1.5x current)` (ADR-018).
