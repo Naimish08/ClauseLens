@@ -348,10 +348,17 @@ shipped configuration, abstention included.
 | span_hit@10 | 0.204 | 0.481 | +0.278 | [+0.130, +0.426] | yes |
 | chunk_hit@10 | 0.093 | 0.333 | +0.241 | [+0.111, +0.370] | yes |
 
-The one **decrease** is `doc_hit`, and it is honest: abstaining on 8.6% of training
-queries (14.8% on test) means those queries return no document at all, so document
-hit falls from saturated to 0.914. Retrieval quality on the queries the system
-answers is substantially higher.
+Two numbers need reconciling. The loop's last accepted state scores **0.496** on
+train (Section 7); the shipped configuration scores **0.458** here. The difference is
+abstention: enabling it for delivery abstains on 8.6% of answerable queries, which
+costs about 0.038 recall and is the price of the functional requirement to return
+nothing when nothing is relevant. That trade-off was chosen after the loop, using
+train data only.
+
+The other **decrease** is `doc_hit`, and it follows from the same decision: an
+abstained query returns no document at all, so document hit falls from saturated to
+0.914. Retrieval quality on the queries the system does answer is substantially
+higher than the baseline's.
 
 The train–test gap on the headline metric is 0.057, smaller than the width of the
 confidence intervals, so the improvement is not a train-only artefact.
