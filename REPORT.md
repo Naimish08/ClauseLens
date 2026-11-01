@@ -221,6 +221,15 @@ full list. The ones that most affect how these numbers should be read:
 - No LLM components; whether an LLM would beat the best non-LLM pipeline here is
   untested.
 - Small test set (54 answerable, ~13 unanswerable), so intervals are wide.
+- Character recall can be inflated by returning more text. The improvement loop
+  therefore carries a text budget (at most 2.5× the baseline's mean returned
+  characters); without it, the best "improvement" was a chunk size that returned
+  twice as much of each contract (ADR-017).
+- The authored negatives are shorter than benchmark queries. Query length was
+  removed from the abstention classifier's features after it separated the classes
+  by construction (ADR-006 section, "A confound worth reporting").
+- Latency is gated by an absolute budget as well as a ratio (ADR-018). The budget
+  is a judgement about what feels interactive, not a measurement.
 
 ---
 
