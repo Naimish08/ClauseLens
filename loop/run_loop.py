@@ -277,6 +277,10 @@ def main(argv: list[str] | None = None) -> int:
             config = dataclasses.replace(proposal.config, name=accepted_name)
             accepted_count += 1
             tried_signatures.add(behaviour_signature(proposal.config))
+            # The baseline changed, so earlier rejections were measured against a
+            # different system. Re-open them; exact repeats are still blocked by
+            # tried_signatures.
+            tried_rules.clear()
         else:
             tried_rules.add(proposal.rule)
             tried_signatures.add(behaviour_signature(proposal.config))

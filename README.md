@@ -66,8 +66,8 @@ make abstention
 # Validate the frozen unanswerable set
 make negatives
 
-# Ask a question
-make cli ARGS="--config configs/final.yaml --query 'What is the governing law?'"
+# Ask a question (serve.yaml is the demo threshold; final.yaml is the evaluated one)
+make cli ARGS="--config configs/serve.yaml --query 'What is the governing law?'"
 
 # Web app
 make app
@@ -109,6 +109,11 @@ path is hard-coded, because the improvement loop rewrites these files.
   final reporting only; the number of test runs is recorded in `logs/test_runs.log`.
 - Embeddings and rerankers run locally on an RTX 4060 (8 GB); no contract text
   leaves the machine.
+- `configs/final.yaml` is the evaluated configuration. `configs/serve.yaml` is the
+  same retriever with a more permissive abstention threshold for the demo: a bare
+  clause question, without the benchmark's "Consider the <contract>" reference,
+  scores lower and would otherwise be abstained. The threshold difference is
+  documented in the report rather than hidden.
 
 ## AI tool usage
 

@@ -21,7 +21,11 @@ CONFIG_DIR = REPO_ROOT / "configs"
 
 def available_configs() -> list[Path]:
     paths = sorted(CONFIG_DIR.glob("*.yaml")) + sorted((CONFIG_DIR / "generated").glob("*.yaml"))
-    return [path for path in paths if path.name.startswith(("baseline", "final", "iter_"))]
+    return [
+        path
+        for path in paths
+        if path.name.startswith(("baseline", "final", "serve", "iter_"))
+    ]
 
 
 @st.cache_resource(show_spinner="Building index…")

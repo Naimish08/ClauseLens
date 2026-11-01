@@ -1,4 +1,4 @@
-name: iter07-retriever_hybrid
+name: iter07-retriever_dense
 seed: 13
 data:
   benchmark: cuad
@@ -13,21 +13,9 @@ chunking:
     snap: true
     snap_tolerance: 80
 retrieval:
-  name: hybrid
+  name: dense
   params:
-    members:
-    - name: bm25
-      params:
-        k1: 1.5
-        b: 0.75
-    - name: dense
-      params:
-        model: bge-base-en-v1.5
-    weights:
-    - 1.0
-    - 1.0
-    k_rrf: 60
-    depth: 100
+    model: gte-base
   top_k: 10
 rerank:
   name: none

@@ -143,62 +143,48 @@ lowest false-abstention"), state the rule in advance, and apply it unchanged to
 test.
 
 
-### Measured results (2026-11-01)
+### Measured results (2026-11-01, final config)
 
-`python -m eval.run_abstention --config configs/baseline.yaml` — BM25 over
-fixed-512 chunks, 140 answerable train queries and 34 train negatives, about 2
-seconds. Figure: [`figures/abstention_curves.png`](figures/abstention_curves.png).
+`python -m eval.run_abstention --config configs/final.yaml` — dense gte-base over
+fixed-1024 chunks, 140 answerable train queries, 34 train negatives, ~20 seconds.
+Nested operating points (threshold chosen on four folds, applied to the fifth):
 
-The operating point rule was fixed before looking at the numbers: *the lowest
-false-abstention rate among thresholds with correct abstention ≥ 0.80; if
-unreachable, the highest abstention F1*. Fitted policies use out-of-fold
-confidences, and the operating point itself is selected **nested** — chosen on the
-other four folds and applied to the held-out fold — so the reported numbers do not
-benefit from selecting the threshold on the same queries.
+| policy | false abst. | correct abst. | abst. F1 |
+|---|---|---|---|
+| threshold | 0.286 | 0.824 | 0.765 |
+| margin | 0.700 | 0.824 | 0.440 |
+| category | 0.264 | 0.824 | **0.777** |
+| classifier | 0.557 | 0.765 | 0.561 |
 
-| policy | false abst. | 95% CI | correct abst. | 95% CI | abst. F1 |
-|---|---|---|---|---|---|
-| threshold | 0.079 | [0.036, 0.121] | 0.794 | [0.647, 0.912] | 0.853 |
-| margin | 0.479 | [0.393, 0.564] | 0.794 | [0.647, 0.912] | 0.630 |
-| category | 0.093 | [0.050, 0.143] | **0.853** | [0.735, 0.971] | **0.879** |
-| classifier | **0.050** | [0.014, 0.086] | 0.794 | [0.647, 0.912] | 0.865 |
+1. **Dense retrieval breaks score-based abstention.** The same protocol on the BM25
+   baseline gave false abstention 0.079 at correct abstention 0.794; on dense it is
+   0.286 at 0.824. Dense retrieval always finds *some* similar chunk, so the top
+   score no longer separates answerable from unanswerable queries. This is the most
+   transferable finding in the section: an abstention policy calibrated on a lexical
+   retriever does not transfer to a dense one.
+2. **Margin is useless here** (0.700 false abstention): the top two chunks are
+   usually close in a long contract regardless of whether the answer exists.
+3. **The classifier lost to a plain threshold** (0.557) with 34 negatives; it
+   overfits and is not shipped.
+4. **Category normalisation is nominally best and statistically indistinguishable**
+   from the global threshold.
+5. **The shipped point is conservative on purpose**: threshold 0.9018 on cosine,
+   giving 8.6% false abstention and 76.5% correct abstention on train. On test the
+   false-abstention rate was 14.8%, so the threshold does not transfer perfectly
+   across splits — stated rather than averaged away.
+6. **Type 3 hard negatives remain the hard case** (0.70); types 1, 2 and 4 are
+   near-saturated.
+7. **Thresholds do not transfer to naturally-phrased questions.** Benchmark queries
+   name the contract, which raises the top score; a bare clause question scores
+   ~0.03–0.05 lower and is wrongly abstained by the same threshold. `configs/final.yaml`
+   is the evaluated configuration; `configs/serve.yaml` lowers the threshold for the
+   demo. This is a benchmark-style dependence, not a model failure.
 
-Per-type correct abstention at the selected points (threshold policy): type 1
-1.00, type 2 1.00, type 3 0.50, type 4 1.00.
-
-1. **The strawman is strong.** A single global threshold on the BM25 top score
-   reaches F1 0.853, and nothing beats it by a margin that survives the interval.
-   The build plan predicted that a fixed threshold would do badly; on this data it
-   does not, because negative queries have systematically weaker lexical matches.
-   That is a finding, not a failure of the experiment.
-2. **Margin is clearly the worst** (FAR 0.479). It abstains whenever the top two
-   results are close, which is common for answerable queries in long contracts.
-3. **Category normalisation is nominally best** (F1 0.879, CAR 0.853) but its
-   interval overlaps the threshold policy's. The honest claim is "at least as good
-   as a global threshold", not "better".
-4. **The classifier trades recall for precision.** Lowest false abstention (0.050)
-   at slightly lower correct abstention. No significant advantage.
-5. **Type 3 hard negatives are the discriminator.** Types 1, 2 and 4 are separated
-   almost perfectly by score; the queries where the topic exists but the specific
-   clause does not are where policies differ (0.50–0.70). With only 10 type-3
-   train negatives, that difference is not estimable with confidence.
-6. **All intervals are wide** (34 negatives). No ranking of these policies is
-   defensible on this sample; the report says so rather than publishing a league
-   table.
-
-### A confound the first run exposed
-
-With `query_len` in the feature vector, the classifier looked perfect: false
-abstention 0.000, correct abstention 0.941, abstention precision 1.000. Inspecting
-coefficients showed why — `query_len` had the largest weight by far (−3.65) and
-the authored negatives are 51–151 characters against benchmark queries of 134–243.
-The model had learned **who wrote the query**, not whether it was answerable.
-
-`query_len` was removed from `FEATURE_NAMES`, and
-`tests/test_abstain.py::test_query_length_is_not_a_model_feature` guards against
-reintroducing it. After removal the classifier performs like the other policies.
-This is the only defence that matters when negatives are authored rather than
-sampled: check that the features cannot separate the classes by construction.
+⚠️ A first classifier looked near-perfect (false abstention 0.000) because
+`query_len` separated the classes by construction: the authored negatives are 51–151
+characters against benchmark queries of 134–243. It was learning who wrote the
+query. The feature is excluded from `FEATURE_NAMES` and a regression test enforces
+it.
 
 ## Interaction with answerable-query metrics
 

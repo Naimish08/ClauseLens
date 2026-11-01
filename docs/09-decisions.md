@@ -434,3 +434,30 @@ so rather than presenting hindsight as foresight.
 **Alternatives rejected.** Keep the local optimum and document it (honest, but ships
 a knowingly worse system and makes the loop look like a dead end); delete the hybrid
 rule (loses the comparison that produced the finding).
+
+---
+
+## ADR-020 — Accepting a change re-opens previously rejected rules
+
+*Status: accepted · 2026-11-01*
+
+**Context.** With ADR-019 the loop reached dense retrieval (recall@10 0.496 from
+0.319) and then stopped: the sentence chunker had been rejected at iteration 4
+while the retriever was still BM25, and the loop never reconsidered it. The
+retrieval grid shows sentence-1024-15% with gte-base at 0.580, well above the
+loop's 0.496. Rejections are conditional on the system they were measured against,
+and a later accepted change invalidates that condition.
+
+**Decision.** On acceptance, clear the set of tried rules. Exact repeats remain
+impossible because every proposed behaviour is hashed into ``tried_signatures``.
+Rules whose builder now returns nothing (size cap reached, already the current
+chunker) are skipped.
+
+**Consequences.** The loop can re-test chunkers, overlap and fusion after the
+retriever changes, which is where interaction effects live. It may spend iterations
+re-confirming rejections; the log shows that, and the iteration cap bounds it.
+Cost: the loop is less obviously monotone, so the iteration table matters more than
+before.
+
+**Alternatives rejected.** Never re-open (the local optimum above); re-open only
+chunking rules (an arbitrary exception that hides the same problem elsewhere).

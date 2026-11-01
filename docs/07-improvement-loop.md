@@ -75,7 +75,9 @@ Each rule produces a **concrete config diff**, not prose. The proposer writes th
 candidate to `configs/generated/iter_NN.yaml` and records which rule fired.
 
 Stopping conditions: no rule fires, the proposal duplicates a previously rejected
-one, or 8 iterations are reached.
+one, or the iteration cap is reached. Accepting a change re-opens previously
+rejected rules, because their rejections were measured against a different system
+(ADR-020); exact repeats are still blocked by a behaviour hash.
 
 ## Step 4 — Accept or reject
 

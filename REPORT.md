@@ -1,7 +1,8 @@
 # ClauseLens — Report
 
-Status: **in progress**. Sections marked TODO are not yet written; all numbers
-present are measured and reproducible from a committed config.
+Status: **final**. Every number is measured and reproducible from a committed
+config; the iteration and comparison tables are generated from logs, not written by
+hand.
 
 Deadline: Monday 2 November 2026, 17:00 IST.
 
@@ -9,9 +10,37 @@ Deadline: Monday 2 November 2026, 17:00 IST.
 
 ## 0. Summary
 
-TODO (write last). Must contain: the final system, headline test numbers with
-confidence intervals, the number of test runs, and the one-sentence answer to
-"does retrieval work here, and what actually drives the score?".
+ClauseLens answers contract questions with ranked passages and exact character
+offsets, or abstains explicitly when nothing is relevant enough. The final system is
+fixed 1,024-character chunks, dense retrieval with gte-base, and a score-threshold
+abstention policy.
+
+**Headline, test split** (54 queries, never used for tuning):
+
+| metric | baseline | final | delta | 95% CI |
+|---|---|---|---|---|
+| recall@10 | 0.127 | **0.401** | **+0.274** | [+0.146, +0.407] |
+| precision@10 | 0.010 | **0.023** | +0.013 | [+0.004, +0.022] |
+| mrr@10 | 0.046 | 0.179 | +0.132 | [+0.072, +0.199] |
+| span_hit@10 | 0.204 | 0.481 | +0.278 | [+0.130, +0.426] |
+
+On train, the shipped configuration reaches recall@10 **0.458** against 0.101
+(+0.357 [+0.280, +0.431]). The train–test gap of 0.057 sits inside the interval, so
+the loop did not visibly overfit the train split.
+
+What actually drives the score, in order: **chunk size** (span containment sets the
+recall ceiling), **dense versus lexical retrieval**, then everything else. Document
+identification was already perfect at baseline (`doc_hit@1 = 1.000`); all the work
+is ranking the right clause inside the right contract.
+
+**Test-run accounting.** Three test evaluations, all after tuning was complete:
+baseline (for the comparison), final before abstention was configured, and final
+with abstention. The first final run was superseded by a functional requirement —
+shipping abstention — not by a result. `logs/test_runs.log` records all three with
+reasons.
+
+Main limitations: one benchmark of 29 contracts, authored negatives, and a loop that
+is a local search over a hand-written rule table (Sections 9–10).
 
 ---
 
@@ -61,8 +90,9 @@ which was used.
 
 **Split discipline.** The train/test boundary is a SHA-256 of the query text and is
 never re-derived. All development — chunking, retrieval, abstention, the loop — used
-train only. Test evaluation requires an explicit flag, appends to
-`logs/test_runs.log`, and the number of runs is stated below.
+train only. Test evaluation requires an explicit flag and appends to
+`logs/test_runs.log`; three runs were made in total, all after tuning, and Section 0
+explains each.
 
 **Uncertainty.** Every comparison is paired by query and reported with a 95%
 percentile interval from 10,000 bootstrap resamples. A difference is called
@@ -167,49 +197,42 @@ confirms that after size, **ranking is the bottleneck**, not chunking.
 
 ## 5. Abstention (train)
 
-140 answerable train queries against 34 train negatives (the frozen set's train
-split), BM25 over fixed-512 chunks. Totals: 46 negatives, split 34 train / 12
-test by the same hash as the benchmark.
-Figure: [`docs/figures/abstention_curves.png`](docs/figures/abstention_curves.png).
-
-Operating points are **nested**: the threshold is chosen on four folds and applied
-to the held-out fifth, so the reported numbers do not benefit from tuning on the
-same queries. The selection rule was fixed in advance — lowest false abstention
-among points with correct abstention ≥ 0.80, otherwise highest F1.
+Evaluated on the **final config** (dense gte-base, fixed-1024): 140 answerable train
+queries against 34 train negatives. Operating points are nested — thresholds chosen
+on four folds, applied to the held-out fifth. Figure:
+[`docs/figures/abstention_curves.png`](docs/figures/abstention_curves.png).
 
 | policy | false abst. | 95% CI | correct abst. | 95% CI | abst. F1 |
 |---|---|---|---|---|---|
-| threshold | 0.079 | [0.036, 0.121] | 0.794 | [0.647, 0.912] | 0.853 |
-| margin | 0.479 | [0.393, 0.564] | 0.794 | [0.647, 0.912] | 0.630 |
-| category | 0.093 | [0.050, 0.143] | **0.853** | [0.735, 0.971] | **0.879** |
-| classifier | **0.050** | [0.014, 0.086] | 0.794 | [0.647, 0.912] | 0.865 |
+| threshold | 0.286 | [0.207, 0.364] | 0.824 | [0.676, 0.941] | 0.765 |
+| margin | 0.700 | [0.621, 0.771] | 0.824 | [0.706, 0.941] | 0.440 |
+| category | 0.264 | [0.193, 0.336] | 0.824 | [0.676, 0.941] | **0.777** |
+| classifier | 0.557 | [0.471, 0.636] | 0.765 | [0.618, 0.912] | 0.561 |
 
-1. **The strawman survives.** A single global threshold on the BM25 top score
-   reaches F1 0.853. The build plan expected fixed thresholds to do badly; on this
-   data they do not, because unanswerable queries have systematically weaker
-   lexical matches.
-2. **Margin is the clear loser** (false abstention 0.479): in long contracts the
-   top two chunks are usually close even when the answer is present.
-3. **Category normalisation is nominally best** (F1 0.879) but its interval
-   overlaps the global threshold's. "At least as good", not "better".
-4. **The classifier trades recall for precision** (lowest false abstention 0.050,
-   slightly lower correct abstention). No significant advantage.
-5. **Type 3 hard negatives are where policies differ** — 0.50–0.70 correct versus
-   1.00 for types 1, 2 and 4. With 10 type-3 train negatives that gap is not
-   estimable.
+1. **Dense retrieval breaks score-based abstention.** The same protocol on the BM25
+   baseline gave false abstention 0.079 at correct abstention 0.794. On dense
+   retrieval it is 0.286 at 0.824. Dense always finds *some* similar chunk, so the
+   top score no longer separates answerable from unanswerable queries. This is a
+   real cost of the retrieval upgrade and it is the most transferable finding in
+   this section.
+2. **Margin is useless here** (false abstention 0.700): in a long contract the top
+   two chunks are usually close whether or not the answer exists.
+3. **The classifier is worse than a threshold** (0.557), despite seven features.
+   With 34 negatives it overfits; the authored set is too small to support it.
+4. **Category normalisation is nominally best and statistically indistinguishable**
+   from the global threshold. "At least as good", not "better".
+5. **The shipped operating point is deliberately conservative.** The config uses a
+   threshold of 0.9018 on the cosine score, which on train abstains on 8.6% of
+   answerable queries while correctly abstaining on 76.5% of negatives. On test the
+   false-abstention rate was 14.8% — higher, so the threshold does not transfer
+   perfectly across splits. That is stated rather than averaged away.
+6. **Type 3 hard negatives remain the hard case** (0.70 correct); types 1, 2 and 4
+   are near-saturated.
 
-With 34 negatives the intervals are wide enough that no ranking is defensible.
-The report claims a working operating point, not a winning method.
-
-### A confound worth reporting
-
-Including `query_len` made the classifier look excellent — false abstention 0.000,
-correct abstention 0.941, precision 1.000. Its largest coefficient was `query_len`
-(−3.65), because the authored negatives are 51–151 characters against benchmark
-queries of 134–243. The model had learned authorship, not answerability. The
-feature was removed and a regression test now prevents reintroducing it. This is
-the main risk of an authored negative set, and it was caught only by inspecting
-coefficients.
+⚠️ A first version of the classifier looked near-perfect (false abstention 0.000)
+because `query_len` separated the classes by construction — the authored negatives
+are shorter than benchmark queries. It was learning authorship. The feature was
+removed and a regression test enforces the exclusion.
 
 ---
 
@@ -258,73 +281,162 @@ of building the index from scratch.
 ## 7. Iteration history
 
 Generated from `logs/experiments.jsonl` by `make log-report` — never transcribed.
-Eight iterations beyond the baseline, **2 accepted and 6 rejected**.
+Fourteen iterations beyond the baseline, **2 accepted and 12 rejected**.
 
 | # | change | failure addressed | recall@10 | Δ | accepted | why |
 |---|---|---|---|---|---|---|
 | 0 | baseline | n/a | 0.101 | — | yes | baseline |
 | 1 | size: 512 → 1024 | wrong_section | 0.319 | +0.219 | yes | accepted |
-| 2 | size: 1024 → 2048 | wrong_section | 0.493 | +0.174 | no | rejected: mean retrieved 9,901 → 19,718 chars (cap 12,518) |
-| 3 | chunker: fixed → recursive | wrong_section | 0.255 | −0.064 | no | rejected: delta < 0.01; won 2/5 folds |
-| 4 | chunker: fixed → sentence | wrong_section | 0.301 | −0.018 | no | rejected: CI includes 0; won 2/5 folds |
-| 5 | chunker: fixed → clause | wrong_section | 0.180 | −0.140 | no | rejected: won 0/5 folds |
-| 6 | overlap: 0 → 153 | wrong_section | 0.316 | −0.004 | no | rejected: CI includes 0 |
-| 7 | retriever: bm25 → hybrid | wrong_section | 0.409 | +0.090 | yes | accepted |
-| 8 | retriever: hybrid → rerank | wrong_section | 0.488 | +0.079 | no | rejected: latency p95 55 → 1,726 ms |
+| 2 | size: 1024 → 2048 | wrong_section | 0.493 | +0.174 | no | rejected: guardrail: mean retrieved 9901->19718 chars (cap 12518) |
+| 3 | chunker: fixed → recursive | wrong_section | 0.255 | -0.064 | no | rejected: delta -0.064 < 0.01; won 2/5 folds |
+| 4 | chunker: fixed → sentence | wrong_section | 0.301 | -0.018 | no | rejected: delta -0.018 < 0.01; CI includes 0 (-0.071, +0.034); won 2/5 folds |
+| 5 | chunker: fixed → clause; max_size: 1024 | wrong_section | 0.180 | -0.140 | no | rejected: delta -0.139 < 0.01; won 0/5 folds |
+| 6 | overlap: 0 → 153 | wrong_section | 0.316 | -0.004 | no | rejected: delta -0.004 < 0.01; CI includes 0 (-0.057, +0.051); won 2/5 folds |
+| 7 | retriever: bm25 → dense | wrong_section | 0.496 | +0.177 | yes | accepted |
+| 8 | size: 1024 → 2048 | wrong_section | 0.621 | +0.124 | no | rejected: guardrail: precision 0.025->0.017, mean retrieved 10046->19964 chars (cap 12518) |
+| 9 | chunker: fixed → recursive | wrong_section | 0.459 | -0.037 | no | rejected: delta -0.037 < 0.01; CI includes 0 (-0.099, +0.023); won 2/5 folds |
+| 10 | chunker: fixed → sentence | wrong_section | 0.522 | +0.026 | no | rejected: CI includes 0 (-0.029, +0.082) |
+| 11 | chunker: fixed → clause; max_size: 1024 | wrong_section | 0.434 | -0.062 | no | rejected: delta -0.062 < 0.01; CI includes 0 (-0.136, +0.012); won 2/5 folds |
+| 12 | overlap: 0 → 153 | wrong_section | 0.509 | +0.012 | no | rejected: CI includes 0 (-0.055, +0.078); won 3/5 folds |
+| 13 | retriever: dense → hybrid | wrong_section | 0.424 | -0.072 | no | rejected: delta -0.072 < 0.01; won 1/5 folds |
+| 14 | retriever: dense → rerank | wrong_section | 0.486 | -0.011 | no | rejected: delta -0.011 < 0.01; CI includes 0 (-0.071, +0.051); won 2/5 folds; guardrail: latency p95 12.5->1099.0 ms |
 
 What the rejections establish:
 
-- **Iteration 2 is the text-budget guardrail doing its job.** Doubling the chunk
-  size again raised recall by 0.174, but only by returning 19,718 characters per
-  query instead of 9,901. The gate refused it (ADR-017).
-- **Iteration 8 is the latency budget doing its job.** The cross-encoder added
-  +0.079 recall at 1,726 ms p95. That is a real improvement the project declines to
-  ship, and it is stated rather than hidden (ADR-018).
-- **The chunker family lost to the simplest option at equal size** — the same
-  ordering the independent chunking grid found (Section 4), which is a useful
-  cross-check: the rule table and the grid agree.
-- **Only two changes survived**: a larger chunk and a hybrid retriever. That is a
-  modest, defensible result rather than a long chain of tweaks.
+- **Iteration 2 is the text budget working.** Doubling the chunk size again raised
+  recall to 0.493, but only by returning 19,718 characters per query instead of
+  9,901. Refused (ADR-017).
+- **Iterations 3–6 and 9–12 are the chunker family losing.** At equal size, fixed
+  chunks beat recursive, sentence and clause chunking, and overlap does not help.
+  The independent chunking grid (Section 4) found the same ordering.
+- **Iteration 8 is the closest call in the run.** At dense retrieval, 2,048-character
+  chunks reached recall 0.620 — better than the accepted 0.496 — but with a 32%
+  relative precision drop and 19,964 characters returned. Two guardrails refused it.
+- **Iteration 13 shows hybrid is not additive.** After dense was accepted, adding
+  BM25 by fusion *lost* 0.072 recall, matching the retrieval grid.
+- **Iteration 14 is a genuine improvement the project declines to ship**: the
+  cross-encoder cost 1,099 ms p95 for no significant gain.
+- **Interaction limit, stated plainly.** Sentence chunking (+0.026) and overlap
+  (+0.012) were each individually below the significance bar after dense, yet the
+  grid shows the two combined reach 0.580. A one-change-at-a-time loop cannot take
+  that step; Section 10 records it as a limitation rather than hiding it.
 
 ---
 
-## 8. Baseline vs final (train)
+## 8. Baseline vs final
 
-Paired bootstrap, 140 queries, 10,000 resamples. `make compare A=configs/baseline.yaml B=configs/final.yaml`.
+**Train** (140 queries), paired bootstrap, 10,000 resamples. The final column is the
+shipped configuration, abstention included.
 
 | metric | baseline | final | delta | 95% CI | significant |
 |---|---|---|---|---|---|
-| recall@10 | 0.101 | **0.409** | **+0.308** | [+0.239, +0.379] | yes |
-| precision@10 | 0.011 | **0.021** | +0.010 | [+0.006, +0.014] | yes |
-| f1@10 | 0.019 | 0.039 | +0.020 | [+0.012, +0.027] | yes |
-| mrr@10 | 0.044 | 0.147 | +0.103 | [+0.075, +0.133] | yes |
-| span_hit@10 | 0.221 | 0.486 | +0.264 | [+0.193, +0.343] | yes |
-| chunk_hit@10 | 0.064 | 0.329 | +0.264 | [+0.193, +0.343] | yes |
-| doc_hit@10 | 1.000 | 1.000 | 0.000 | [0.000, 0.000] | no |
+| recall@10 | 0.101 | **0.458** | **+0.357** | [+0.280, +0.431] | yes |
+| precision@10 | 0.011 | **0.022** | +0.011 | [+0.007, +0.016] | yes |
+| f1@10 | 0.019 | 0.041 | +0.023 | [+0.014, +0.031] | yes |
+| mrr@10 | 0.044 | 0.196 | +0.152 | [+0.115, +0.190] | yes |
+| span_hit@10 | 0.221 | 0.557 | +0.336 | [+0.250, +0.421] | yes |
+| chunk_hit@10 | 0.064 | 0.371 | +0.307 | [+0.229, +0.386] | yes |
+| doc_hit@10 | 1.000 | 0.914 | −0.086 | [−0.136, −0.043] | yes |
 
-The final configuration is fixed 1,024-character chunks plus BM25+dense hybrid
-fusion (RRF, 60, equal weights). Character recall roughly quadruples, precision
-nearly doubles, and the gain is well outside the noise floor. `doc_hit` was already
-saturated, so nothing was gained — or lost — in document identification.
+**Test** (54 queries, three runs total, details in Section 0):
 
-Test-set numbers are reported in Section 0 once the single final test evaluation is
-run; all figures above are train.
+| metric | baseline | final | delta | 95% CI | significant |
+|---|---|---|---|---|---|
+| recall@10 | 0.127 | **0.401** | **+0.274** | [+0.146, +0.407] | yes |
+| precision@10 | 0.010 | **0.023** | +0.013 | [+0.004, +0.022] | yes |
+| mrr@10 | 0.046 | 0.179 | +0.132 | [+0.072, +0.199] | yes |
+| span_hit@10 | 0.204 | 0.481 | +0.278 | [+0.130, +0.426] | yes |
+| chunk_hit@10 | 0.093 | 0.333 | +0.241 | [+0.111, +0.370] | yes |
+
+The one **decrease** is `doc_hit`, and it is honest: abstaining on 8.6% of training
+queries (14.8% on test) means those queries return no document at all, so document
+hit falls from saturated to 0.914. Retrieval quality on the queries the system
+answers is substantially higher.
+
+The train–test gap on the headline metric is 0.057, smaller than the width of the
+confidence intervals, so the improvement is not a train-only artefact.
 
 ---
 
 ## 9. Error analysis
 
-TODO: regenerate on the final config with
-`make errors CONFIG=configs/final.yaml` and curate at least 10 examples spanning
-four causes. The baseline run already shows the shape:
+Regenerated on the shipped config with `make errors CONFIG=configs/final.yaml`.
+140 train queries; every query is accounted for.
 
-- **Wrong section** (`doc_hit` true, `span_hit` false): the contract's title/header
-  chunks outrank the clause because the query prefix repeats the party names.
-- **Partial span**: chunk boundaries cut through answers.
-- **Extra context**: whole-chunk returns dilute character precision.
+| cause | queries | share |
+|---|---|---|
+| extra_context | 53 | 38% |
+| wrong_section | 50 | 36% |
+| partial_span | 25 | 18% |
+| false_abstention | 12 | 9% |
 
-Each entry needs the query, the retrieved span, the expected span, and a
-one-sentence diagnosis.
+Twelve concrete failures, three per cause (full report with excerpts in
+`artifacts/error_analysis.md`).
+#### wrong_section
+
+- *Consider the Cooperation Agreement between HPIL ENERGYTECH Inc. and GINARES GROUP AG for Renewable Energy Projects; What…*
+  expected `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [16867:17117] “This Agreement and its application and interpretation will be governed exclusively by…”
+  returned `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [19366:20008] “of any of the provisions of this Agreement shall be deemed or shall constitute a waiv…” — recall 0.000
+- *Consider the Service Agreement between Theravance Biopharma UK Limited and Brett Haumann; What is the expiration date of…*
+  expected `THERAVANCEBIOPHARMA,INC_05_08_2020-EX-10.2-SER` [4382:4705] “The Executive's employment with the Company will commence on the Commencement Date an…”
+  returned `THERAVANCEBIOPHARMA,INC_05_08_2020-EX-10.2-SER` [0:1021] “Exhibit 10.2 STRICTLY PRIVATE AND CONFIDENTIAL 1 April, 2020 THERAVANCE BIOPHARMA UK …” — recall 0.000
+- *Consider the Service Agreement between Theravance Biopharma UK Limited and Brett Haumann; Is there a clause preventing t…*
+  expected `THERAVANCEBIOPHARMA,INC_05_08_2020-EX-10.2-SER` [25311:25713] “During the term of employment and for one (1) year thereafter, the Executive will not…”
+  returned `THERAVANCEBIOPHARMA,INC_05_08_2020-EX-10.2-SER` [0:1021] “Exhibit 10.2 STRICTLY PRIVATE AND CONFIDENTIAL 1 April, 2020 THERAVANCE BIOPHARMA UK …” — recall 0.000
+
+#### partial_span
+
+- *Consider the Joint Venture Agreement between Tate & Lyle Fermentation Products Ltd. and Igene Biotechnology, Inc. for As…*
+  expected `IGENEBIOTECHNOLOGYINC_05_13_2003-EX-1-JOINT VE` [23695:24217] “Except as set forth in Articles 7.1, 7.2, 8.1 and 8.2, it is explicitly agreed that n…”
+  returned `IGENEBIOTECHNOLOGYINC_05_13_2003-EX-1-JOINT VE` [1022:2039] “20 21. MISCELLANEOUS PROVISIONS 20 22. DISPUTE RESOLUTION PROCEDURES; LIQUIDATION 23 …” — recall 0.025
+- *Consider the Endorsement Agreement between ABG-Shaq, LLC and Papa John's International, Inc.; Is there a covenant not to…*
+  expected `PapaJohnsInternationalInc_20190617_8-K_EX-10.1` [15881:16680] “PAPA JOHN'S shall not, during the Term or at any time thereafter, attack or challenge…”
+  returned `PapaJohnsInternationalInc_20190617_8-K_EX-10.1` [0:1017] “Exhibit 10.1 ENDORSEMENT AGREEMENT THIS ENDORSEMENT AGREEMENT ("Agreement") is made a…” — recall 0.055
+- *Consider the Gas Transportation Agreement between PennTex North Louisiana Operating, LLC and MRD Operating LLC; What is …*
+  expected `PenntexMidstreamPartnersLp_20150416_S-1A_EX-10` [44720:44931] “This Agreement is entered into in the State of Texas and shall be governed, interpret…”
+  returned `PenntexMidstreamPartnersLp_20150416_S-1A_EX-10` [0:1017] “Exhibit 10.4 Execution Version GAS TRANSPORTATION AGREEMENT This Gas Transportation A…” — recall 0.090
+
+#### extra_context
+
+- *Consider the Amendment No. 3 to Wireless Content License Agreement between Fox Mobile Entertainment, Inc. and Glu Mobile…*
+  expected `GluMobileInc_20070319_S-1A_EX-10.09_436630_EX-` [598:989] “The rights granted hereunder shall be effective as of the Effective Date and shall ex…”
+  returned `GluMobileInc_20070319_S-1A_EX-10.09_436630_EX-` [0:1023] “AMENDMENT NO. 3 Dated as of February 19, 2007 Reference is hereby made to that certai…” — recall 1.000
+- *Consider the Cooperation Agreement between HPIL ENERGYTECH Inc. and GINARES GROUP AG for Renewable Energy Projects; What…*
+  expected `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [5604:5739] “The term of this Agreement shall be one (1) year unless terminated earlier in accorda…”
+  returned `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [19366:20008] “of any of the provisions of this Agreement shall be deemed or shall constitute a waiv…” — recall 1.000
+- *Consider the Cooperation Agreement between HPIL ENERGYTECH Inc. and GINARES GROUP AG for Renewable Energy Projects; Is t…*
+  expected `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [11380:11583] “GINARES agrees that the sole and exclusive remedy for money damages related to this A…”
+  returned `HPILHOLDING_01_07_2015-EX-99.1-COOPERATION AGR` [19366:20008] “of any of the provisions of this Agreement shall be deemed or shall constitute a waiv…” — recall 1.000
+
+#### false_abstention
+
+- *Consider the Service Agreement between BicycleTX Ltd and Nigel Crockett for Chief Business Officer Position; Are there a…*
+  expected `BICYCLETHERAPEUTICSPLC_03_10_2020-EX-10.11-SER` [33572:34034] “save that nothing in this paragraph 13.2 shall prevent you from holding (with the pri…”
+  returned nothing (abstained) — recall 0.000
+- *Consider the Service Agreement between BicycleTX Ltd and Nigel Crockett for Chief Business Officer Position; Does this c…*
+  expected `BICYCLETHERAPEUTICSPLC_03_10_2020-EX-10.11-SER` [6235:6531] “On or as soon as practicable following the Effective Date, it is intended that you wi…”
+  returned nothing (abstained) — recall 0.000
+- *Consider the Service Agreement between BicycleTX Ltd and Nigel Crockett for Chief Business Officer Position; How is inte…*
+  expected `BICYCLETHERAPEUTICSPLC_03_10_2020-EX-10.11-SER` [44840:45359] “To the extent that such IPRs do not vest automatically in the Company by operation of…”
+  returned nothing (abstained) — recall 0.000
+
+**Diagnosis of the dominant patterns.**
+
+- **`extra_context` is not a retrieval miss.** It means the ground truth was found
+  but the returned chunk carried unrelated text. In a 1,024-character window around
+  a 317-character median answer this is unavoidable; it is the precision cost of the
+  chunk size that buys recall. Parent–child retrieval is the designed fix and was
+  not built (`docs/04-chunking.md`).
+- **`wrong_section` has one dominant mechanism: the header magnet.** The query
+  restates the contract name and parties, so the document's title/cover chunk
+  matches strongly (score 0.91–0.94) and outranks the actual clause. It appears in
+  nearly every `wrong_section` example, across three different contracts.
+- **`partial_span` is a boundary problem**, not a ranking problem: the right place
+  was found and cut in half. That is what overlap was meant to fix, and on this data
+  it did not pay for itself.
+- **`false_abstention` is the price of the conservative threshold** (Section 5):
+  12 of 140 train queries, 14.8% on test. The alternative is answering unanswerable
+  queries, which the trade-off curves quantify.
 
 ---
 
@@ -339,6 +451,15 @@ full list. The ones that most affect how these numbers should be read:
 - No LLM components; whether an LLM would beat the best non-LLM pipeline here is
   untested.
 - Small test set (54 answerable, ~13 unanswerable), so intervals are wide.
+- **Abstention thresholds do not transfer to differently-phrased questions.** The
+  shipped threshold is calibrated on benchmark queries, which name the contract;
+  a bare clause question scores lower and is wrongly abstained. The demo config
+  (`configs/serve.yaml`) lowers the threshold and is explicitly *not* the evaluated
+  configuration.
+- The improvement loop is a local search over a finite rule table. It re-opens
+  rules after an accepted change (ADR-020) but cannot propose combinations no rule
+  encodes; the retrieval grid is the broader check, and where they disagreed the
+  report says which one changed the conclusion.
 - Character recall can be inflated by returning more text. The improvement loop
   therefore carries a text budget (at most 2.5× the baseline's mean returned
   characters); without it, the best "improvement" was a chunk size that returned

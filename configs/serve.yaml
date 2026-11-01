@@ -1,0 +1,40 @@
+# Demo serving config: same retriever as configs/final.yaml, but a more
+# permissive abstention threshold because a bare clause question (without the
+# 'Consider the contract' reference) scores lower than benchmark queries.
+# This is NOT the evaluated configuration; see configs/final.yaml.
+name: serve-demo
+seed: 13
+data:
+  benchmark: cuad
+  mini_limit: 194
+  read_mode: raw
+  split: train
+chunking:
+  name: fixed
+  params:
+    size: 1024
+    overlap: 0
+    snap: true
+    snap_tolerance: 80
+retrieval:
+  name: dense
+  params:
+    model: gte-base
+  top_k: 10
+rerank:
+  name: none
+  params: {}
+abstain:
+  name: threshold
+  params:
+    threshold: 0.865
+query:
+  strip_doc_hint: false
+metrics:
+  mode: paper
+  ks:
+  - 1
+  - 2
+  - 4
+  - 8
+  - 16

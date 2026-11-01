@@ -63,13 +63,23 @@ debrief.
    (`04-chunking.md`) but not built. This is the single most likely source of
    further precision/recall gains.
 
+10. **The loop is a local search, not a global one.** It walks a finite rule table
+    and only ever applies one change at a time. Re-opening rules after an accepted
+    change (ADR-020) lets it recover from stale rejections, but it cannot discover a
+    combination no rule proposes. The retrieval grid is the broader check on the
+    same train data, and where the two disagree the report says so.
+
 10. **Latency measured on one laptop.** RTX 4060 Laptop, 8 GB. Absolute numbers
     are indicative; relative comparisons within the same run are the meaningful
     part.
 
-11. **Cross-encoder reranking is evaluated on the best hybrid only**, not swept,
-    for time. A different base retriever might interact differently with the same
+11. **Cross-encoder reranking is evaluated on one base retriever** (hybrid in the
+    grid), not swept. A different base might interact differently with the same
     reranker.
+
+12. **Rule ordering is design, and design can be wrong.** The first rule table put
+    hybrid before dense, which cost about 0.17 recall@10 until the grid exposed it
+    (ADR-019). The ordering is judgement, informed by train measurements.
 
 12. **Evaluated at a single seed.** Bootstrap and CV address sampling noise, not
     seed sensitivity of dense models. Not measured; stated as a gap.
